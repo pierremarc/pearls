@@ -1,0 +1,16 @@
+[package]
+name = "dial"
+version = "0.1.0"
+authors = ["Pierre Marchand <pierre-m@atelier-cartographique.be>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "2.33.0"
+humantime = "1.3.0"
+chrono = "0.4.9"
+chrono-humanize = "0.0.11"
+crossbeam-channel = "0.4"
+matrix_bot_api = {git="https://github.com/zwieberl/matrix_bot_api"}
+shell = { path = "../shell" }
