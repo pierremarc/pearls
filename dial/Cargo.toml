@@ -12,5 +12,6 @@ humantime = "1.3.0"
 chrono = "0.4.9"
 chrono-humanize = "0.0.11"
 crossbeam-channel = "0.4"
-matrix_bot_api = {git="https://github.com/zwieberl/matrix_bot_api"}
+# matrix_bot_api = {git="https://github.com/zwieberl/matrix_bot_api"}
+matrix_bot_api = { path = "../matrix_bot_api" }
 shell = { path = "../shell" }

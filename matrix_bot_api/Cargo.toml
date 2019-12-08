@@ -1,0 +1,20 @@
+[package]
+name = "matrix_bot_api"
+version = "0.4.0"
+authors = ["zwieberl <donko@posteo.de>"]
+description = """API for writing a bot for the Matrix messaging protocol"""
+license = "MIT"
+keywords = [ "matrix", "bot", "fractal" ]
+repository = "https://github.com/zwieberl/matrix_bot_api"
+edition = "2018"
+
+[dependencies]
+fractal-matrix-api = "4.2.0"
+
+[dependencies.chrono]
+features = ["serde"]
+version = "0.4.8"
+
+[dev-dependencies]
+config = "0.9.3"
+rand = "0.7.0"

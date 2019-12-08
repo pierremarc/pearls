@@ -1,26 +1,14 @@
 use clap::{App, Arg};
-use shell::store::{Record, SharedStore, Store};
 use std::path::Path;
-use std::sync::Arc;
 
 mod bot;
 
-fn run_bot(homeserver: &str, username: &str, password: &str, log: &str) {
+fn run_bot(homeserver: &str, room_id: &str, username: &str, password: &str, log: &str) {
     let log_path = Path::new(log);
+    let rx = bot::start_bot(&log_path, homeserver, room_id, username, password);
 
-    let store = Store::new(&log_path);
-
-    let rx = bot::start_bot(store.clone(), homeserver, username, password);
-
-    for record in rx.iter() {
-        match store.try_write() {
-            Err(_) => {
-                println!("Failed to lock for write");
-            }
-            Ok(lock) => {
-                // lock.get_mut();
-            }
-        }
+    for message in rx.iter() {
+        println!("{}", message);
     }
 }
 
@@ -30,6 +18,13 @@ fn main() {
         .long("homeserver")
         .value_name("homeserver")
         .help("Host to connect to")
+        .takes_value(true);
+
+    let room = Arg::with_name("room")
+        .short("r")
+        .long("room")
+        .value_name("room")
+        .help("Room to join")
         .takes_value(true);
 
     let username = Arg::with_name("username")
@@ -46,7 +41,7 @@ fn main() {
         .help("Password")
         .takes_value(true);
 
-    let log_path = Arg::with_name("log file")
+    let log_path = Arg::with_name("log")
         .short("l")
         .long("log")
         .value_name("log")
@@ -57,6 +52,7 @@ fn main() {
         .version("0.1")
         .about("Chat your time")
         .arg(homeserver)
+        .arg(room)
         .arg(username)
         .arg(password)
         .arg(log_path)
@@ -64,11 +60,18 @@ fn main() {
 
     match (
         matches.value_of("homeserver"),
+        matches.value_of("room"),
         matches.value_of("username"),
         matches.value_of("password"),
     ) {
-        (Some(hs), Some(us), Some(pa)) => {
-            run_bot(hs, us, pa, matches.value_of("log").unwrap_or("pearls.log"));
+        (Some(hs), Some(rs), Some(us), Some(pa)) => {
+            run_bot(
+                hs,
+                rs,
+                us,
+                pa,
+                matches.value_of("log").unwrap_or("pearls.log"),
+            );
         }
         _ => println!("Missing homeserver or username or password"),
     }

@@ -1,17 +1,25 @@
+use crate::chrono::Datelike;
+use crate::chrono::TimeZone;
+use chrono::offset::Utc;
 use humantime;
 use pom::parser::*;
 use pom::Error;
 use pom::Parser;
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::slice;
 use std::time;
 
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub enum Command {
+    Ping,
     Add(String),
-    Start(String, time::Duration),
+    Do(String, String, time::Duration),
     Stop,
     List,
+    Project(String),
+    Since(time::SystemTime),
 }
 
 // #[derive(Debug)]
@@ -41,14 +49,34 @@ fn letter() -> Parser<u8, u8> {
     (lc | uc)
 }
 
-fn number() -> Parser<u8, u8> {
+fn digit() -> Parser<u8, u8> {
     let n = one_of(b"0123456789");
     n
 }
 
+fn integer() -> Parser<u8, u32> {
+    digit()
+        .repeat(1..)
+        .convert(|chars| String::from_utf8(chars.to_vec()))
+        .map(|s| match s.parse::<u32>() {
+            Ok(n) => n,
+            Err(_) => 0,
+        })
+}
+
+fn fixed_int(i: usize) -> Parser<u8, u32> {
+    digit()
+        .repeat(i)
+        .convert(|chars| String::from_utf8(chars.to_vec()))
+        .map(|s| match s.parse::<u32>() {
+            Ok(n) => n,
+            Err(_) => 0,
+        })
+}
+
 fn ident() -> Parser<u8, String> {
-    let char_string = (letter() | number() | one_of(b"_-")).repeat(1..);
-    char_string.convert(|(chars)| String::from_utf8(chars))
+    let char_string = (letter() | digit() | one_of(b"_-")).repeat(1..);
+    char_string.convert(|chars| String::from_utf8(chars))
 }
 
 fn duration() -> Parser<u8, time::Duration> {
@@ -58,12 +86,54 @@ fn duration() -> Parser<u8, time::Duration> {
     })
 }
 
+fn st_from_ts(ts: i64) -> time::SystemTime {
+    time::SystemTime::UNIX_EPOCH + time::Duration::from_millis(ts.try_into().unwrap())
+}
+
+fn date() -> Parser<u8, time::SystemTime> {
+    let sep = || one_of(b" -./");
+    // YYYY-MM-DD
+    let format1 = (fixed_int(4) - sep()) + (fixed_int(2) - sep()) + fixed_int(2);
+
+    // DD-MM[-YYYY]
+    let format2 = (fixed_int(2) - sep()) + fixed_int(2) + (-sep() + fixed_int(4)).opt();
+
+    let mapped1 = format1.map(|((y, m), d)| {
+        st_from_ts(
+            Utc.ymd(i32::try_from(y).unwrap_or(i32::max_value()), m, d)
+                .and_hms(0, 1, 1)
+                .timestamp_millis(),
+        )
+    });
+
+    let mapped2 = format2.map(|((d, m), opt_y)| {
+        let (_, y) = opt_y.unwrap_or_else(|| {
+            (
+                true,
+                Utc::now().year().try_into().unwrap_or(u32::max_value()),
+            )
+        });
+        st_from_ts(
+            Utc.ymd(i32::try_from(y).unwrap_or(i32::max_value()), m, d)
+                .and_hms(0, 1, 1)
+                .timestamp_millis(),
+        )
+    });
+
+    mapped1 | mapped2
+}
+
 fn command_name() -> Parser<u8, String> {
     ((seq(b"add") | seq(b"start") | seq(b"stop") | seq(b"ls")) - (space() | end()))
         .convert(|chars| String::from_utf8(chars.to_vec()))
 }
 
 type CommandParser = Parser<u8, Command>;
+
+fn ping() -> CommandParser {
+    let cn = seq(b"!ping");
+    cn.map(|_| Command::Ping)
+}
 
 fn add() -> CommandParser {
     let cn = seq(b"!add") - space();
@@ -72,12 +142,20 @@ fn add() -> CommandParser {
     all.map(|(_, project_name)| Command::Add(project_name))
 }
 
-fn start() -> CommandParser {
-    let cn = seq(b"!start") - space();
+fn project() -> CommandParser {
+    let cn = seq(b"!project") - space();
     let id = ident() - space();
+    let all = cn + id;
+    all.map(|(_, project_name)| Command::Project(project_name))
+}
+
+fn start() -> CommandParser {
+    let cn = seq(b"!do") - space();
+    let id = ident() - space();
+    let task = ident() - space();
     let d = duration();
-    let all = cn + id + d;
-    all.map(|((_, project_name), duration)| Command::Start(project_name, duration))
+    let all = cn + id + task + d;
+    all.map(|(((_, project_name), task), duration)| Command::Do(project_name, task, duration))
 }
 
 fn stop() -> CommandParser {
@@ -90,8 +168,15 @@ fn list() -> CommandParser {
     cn.map(|_| Command::List)
 }
 
+fn since() -> CommandParser {
+    let cn = seq(b"!since");
+    let t = date() | duration().map(|d| time::SystemTime::now() - d);
+    let all = cn - space() + t;
+    all.map(|(_, st)| Command::Since(st))
+}
+
 fn command() -> CommandParser {
-    add() | start() | stop() | list()
+    ping() | add() | start() | stop() | list() | project() | since()
 }
 
 pub fn parse_command<'a>(expr: &'a str) -> Result<Command, Error> {
@@ -116,13 +201,6 @@ mod tests {
         let expected = humantime::parse_duration("4h  30m").unwrap();
         assert_eq!(output, Ok(expected));
     }
-    #[test]
-    fn parse_command_name() {
-        let input = b"add foo";
-        let output = command_name().parse(input);
-        let expected = String::from("add");
-        assert_eq!(output, Ok(expected));
-    }
 
     #[test]
     fn parse_command_ok() {
@@ -131,9 +209,10 @@ mod tests {
             Ok(Command::Add("foo-0".into()))
         );
         assert_eq!(
-            parse_command("!start foo-0 3h 30m"),
-            Ok(Command::Start(
+            parse_command("!do foo-0 dev 3h 30m"),
+            Ok(Command::Do(
                 "foo-0".into(),
+                "dev".into(),
                 time::Duration::from_secs(3 * 60 * 60 + (30 * 60))
             ))
         );
