@@ -27,6 +27,7 @@ struct CommandHandler {
     chan: Sender<String>,
     store: Store,
     room_id: String,
+    last_message_id: String,
 }
 
 fn make_table_row(cells: Vec<String>) -> String {
@@ -223,14 +224,35 @@ impl CommandHandler {
 
 impl MessageHandler for CommandHandler {
     fn init_handler(&mut self, bot: &ActiveBot) {
+        println!("joining room{}", &self.room_id);
         bot.join_room(&self.room_id);
+        bot.send_message(
+            "Ready to watch you work",
+            &self.room_id,
+            MessageType::TextMessage,
+        )
     }
 
     fn handle_message(&mut self, bot: &ActiveBot, message: &Message) -> HandleResult {
         let user = message.sender.clone();
         let body = message.body.clone();
+        if message.room != self.room_id {
+            println!(
+                "Got a message({}) from {} in room {}:\n\t'{}'",
+                message.id, user, message.room, body
+            );
+            return HandleResult::StopHandling;
+        }
+        if message.id == self.last_message_id {
+            println!(
+                "Got again message({}) from {} in room {}:\n\t'{}'",
+                message.id, user, message.room, body
+            );
+            return HandleResult::StopHandling;
+        }
+        self.last_message_id = message.id.clone();
         if body.chars().nth(0).unwrap_or('_') != '!' {
-            self.chan.try_send(format!("{}> {}", user, body));
+            self.chan.try_send(format!("{}> {}", user, body)).unwrap();
             return HandleResult::ContinueHandling;
         }
         match self.parse_command(user, body) {
@@ -264,6 +286,7 @@ pub fn start_bot(
                 let bot = MatrixBot::new(CommandHandler {
                     chan: s,
                     room_id: rid,
+                    last_message_id: String::new(),
                     store,
                 });
                 bot.run(&u, &p, &h);

@@ -196,15 +196,21 @@ impl MatrixBot {
         }
     }
 
-    fn handle_rooms(&self, _rooms: Vec<Room>) {
-        // for rr in rooms {
-        //     if rr.membership.is_invited() {
-        //         self.backend
-        //             .send(BKCommand::JoinRoom(rr.id.clone()))
-        //             .unwrap();
-        //         println!("Joining room {}", rr.id.clone());
-        //     }
-        // }
+    fn handle_rooms(&self, rooms: Vec<Room>) {
+        for rr in rooms {
+            // println!(
+            //     "handle_room {} {} {}",
+            //     rr.id,
+            //     rr.membership.is_joined(),
+            //     rr.membership.is_invited()
+            // );
+            if rr.membership.is_invited() && !rr.membership.is_joined() {
+                self.backend
+                    .send(BKCommand::JoinRoom(rr.id.clone()))
+                    .unwrap();
+                println!("Joining room {}", rr.id.clone());
+            }
+        }
     }
 }
 
@@ -226,14 +232,10 @@ impl ActiveBot {
     /// Will join the given room (give room-id, not room-name)
     pub fn join_room(&self, room_id: &str) {
         println!("ActiveBot::join_room {}", room_id);
-        match self.backend.send(BKCommand::JoinRoom(room_id.to_string())) {
-            Ok(_) => {
-                println!("Joining {}", room_id);
-            }
-            Err(err) => {
-                println!("Error Joining {}", err);
-            }
-        };
+        self.backend
+            .send(BKCommand::LeaveRoom(room_id.to_string()))
+            .and_then(|_| self.backend.send(BKCommand::JoinRoom(room_id.to_string())))
+            .unwrap();
     }
 
     /// Will leave the given room (give room-id, not room-name)
