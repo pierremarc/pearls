@@ -2,6 +2,7 @@ use clap::{App, Arg};
 use std::path::Path;
 
 mod bot;
+mod notif;
 
 fn run_bot(homeserver: &str, room_id: &str, username: &str, password: &str, log: &str) {
     let log_path = Path::new(log);
