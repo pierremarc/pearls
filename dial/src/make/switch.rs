@@ -42,7 +42,7 @@ pub fn switch(
             Ok(_) => Some((format!("Good {}ing!", task.clone()), String::new())),
         },
         None => Some((
-            String::from("There's nothing to !switch from, you might want to do."),
+            String::from("There's nothing to !switch from, you might want to !do."),
             String::from("There's nothing to <strong>!switch</strong> from, you might want to <strong>!do<strong>."),
         )),
     }
