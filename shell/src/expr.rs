@@ -37,7 +37,11 @@ pub enum Command {
 // impl Error for ParseCommandError {}
 
 fn space() -> Parser<u8, ()> {
-    one_of(b" \t\r\n").repeat(1..).discard()
+    one_of(b" \t").repeat(1..).discard()
+}
+
+fn trailing_space() -> Parser<u8, ()> {
+    one_of(b" \t").repeat(0..).discard()
 }
 
 fn string() -> Parser<u8, String> {
@@ -164,7 +168,7 @@ fn add() -> CommandParser {
 
 fn project() -> CommandParser {
     let cn = seq(b"!project") - space();
-    let id = ident() - space();
+    let id = ident();
     let all = cn + id;
     all.map(|(_, project_name)| Command::Project(project_name))
         .name("project")
@@ -193,7 +197,7 @@ fn done() -> CommandParser {
 fn switch() -> CommandParser {
     let cn = seq(b"!switch") - space();
     let id = ident() - space();
-    let task = ident() - space();
+    let task = ident();
     let all = cn + id + task;
     all.map(|((_, project_name), task)| Command::Switch(project_name, task))
         .name("switch")
@@ -238,6 +242,7 @@ fn command() -> CommandParser {
             | switch()
     }
     .name("command")
+        - trailing_space()
 }
 
 pub fn parse_command<'a>(expr: &'a str) -> Result<Command, Error> {
@@ -258,19 +263,7 @@ pub fn parse_command<'a>(expr: &'a str) -> Result<Command, Error> {
 mod tests {
     use crate::expr::*;
     #[test]
-    fn parse_duration() {
-        let input = b"4h  30m";
-        let output = duration().parse(input);
-        let expected = humantime::parse_duration("4h  30m").unwrap();
-        assert_eq!(output, Ok(expected));
-    }
-
-    #[test]
-    fn parse_command_ok() {
-        // assert_eq!(
-        //     parse_command("!add  foo-0"),
-        //     Ok(Command::Add("foo-0".into()))
-        // );
+    fn parse_do_ok() {
         assert_eq!(
             parse_command("!do foo-0 dev 3h 30m"),
             Ok(Command::Do(
@@ -279,18 +272,12 @@ mod tests {
                 time::Duration::from_secs(3 * 60 * 60 + (30 * 60))
             ))
         );
-        assert_eq!(parse_command("!stop"), Ok(Command::Stop));
-        assert_eq!(parse_command("!ls"), Ok(Command::List));
     }
-    // #[test]
-    // fn parse_command_error() {
-    //     assert_eq!(
-    //         parse_command("!don foo dev 3h 30m"),
-    //         Ok(Command::Do(
-    //             "foo".into(),
-    //             "dev".into(),
-    //             time::Duration::from_secs(3 * 60 * 60 + (30 * 60))
-    //         ))
-    //     );
-    // }
+    #[test]
+    fn parse_project_ok() {
+        assert_eq!(
+            parse_command("!project ac-bot"),
+            Ok(Command::Project("ac-bot".into(),))
+        );
+    }
 }
