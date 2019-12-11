@@ -6,13 +6,13 @@ pub fn help() -> Option<(String, String)> {
         !new <project-name> <hours>
             register a new project
         !do <project-name> <task-name> <duration>
-            start a new task
+            start a new task that will last for <duration>
         !switch <project-name> <task-name>
             stop your current task and create a new one that has the same end time as the current one
         !stop
             stop your current task
         !more <duration>
-            add some time to your current task. the new end will NOW + <duration>
+            stop your current task and create a new one with same project and task for <duration>
         !ls
             list current tasks
         !project <project-name>
@@ -27,14 +27,14 @@ pub fn help() -> Option<(String, String)> {
         <h4>!new <em>project-name</em> <em>hours</em></h4>
             register a new project
         <h4>!do <em>project-name</em> <em>task-name</em> <em>duration</em></h4>
-        <p>start a new task</p>
-        <p>you'll be notified of its ending</p>
+        start a new task that will last for <em>duration</em>.
         <h4>!switch <em>project-name</em> <em>task-name</em></em></h4>
             stop your current task and create a new one that has the same end time as the current one
         <h4>!stop</h4>
             stop your current task
         <h4>!more <em>duration</em></h4>
-            add some time to your current task. the new end will <em>now</em> + <em>duration</em>
+            stop your current task and create a 
+new one with same project and task for <em>duration</em>
         <h4>!ls</h4>
             list current tasks
         <h4>!project <em>project-name</em></h4>

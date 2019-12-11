@@ -20,7 +20,7 @@ where
         Ok(store) => {
             thread::spawn(move || {
                 let mut h: Box<dyn NotificationHandler + Send> = Box::new(handler);
-                for _ in tick(time::Duration::from_millis(10_000)).iter() {
+                for _ in tick(time::Duration::from_millis(2_000)).iter() {
                     match store.select_ending_tasks(|row| {
                         let task_id: i64 = row.get(0)?;
                         let username: String = row.get(1)?;
