@@ -1,8 +1,8 @@
 use crate::expr::Command;
+use crate::util::{dur, ts};
 use rusqlite::{named_params, Connection, Result as SqlResult, Row, ToSql, NO_PARAMS};
 use serde::{Deserialize, Serialize};
 use std;
-use std::convert::TryFrom;
 use std::fmt;
 use std::path::Path;
 use std::time;
@@ -74,17 +74,6 @@ fn sql(name: Name) -> &'static str {
         Name::SelectProjectInfo => include_str!("sql/select_project_info.sql"),
         Name::SelectUser => include_str!("sql/select_user.sql"),
     }
-}
-
-pub fn dur(d: &time::Duration) -> i64 {
-    let millis = d.as_millis();
-    i64::try_from(millis).unwrap_or(i64::max_value())
-}
-
-pub fn ts(t: &time::SystemTime) -> i64 {
-    dur(&t
-        .duration_since(time::UNIX_EPOCH)
-        .unwrap_or(time::Duration::from_millis(0)))
 }
 
 impl Store {
