@@ -63,6 +63,7 @@ impl CommandHandler {
                     Command::More(d) => make::more(self, u, d.clone()),
                     Command::Project(project) => make::project(self, project),
                     Command::Since(since) => make::since(self, u, since),
+                    Command::Switch(project, task) => make::switch(self, u, project, task),
                 }
             }
             Err(_) => make::help(),
@@ -93,17 +94,17 @@ impl MessageHandler for CommandHandler {
         let user = message.sender.clone();
         let body = message.body.clone();
         if message.room != self.room_id {
-            println!(
-                "Got a message({}) from {} in room {}:\n\t'{}'",
-                message.id, user, message.room, body
-            );
+            // println!(
+            //     "Got a message({}) from {} in room {}:\n\t'{}'",
+            //     message.id, user, message.room, body
+            // );
             return HandleResult::StopHandling;
         }
         if message.id == self.last_message_id {
-            println!(
-                "Got again message({}) from {} in room {}:\n\t'{}'",
-                message.id, user, message.room, body
-            );
+            // println!(
+            //     "Got again message({}) from {} in room {}:\n\t'{}'",
+            //     message.id, user, message.room, body
+            // );
             return HandleResult::StopHandling;
         }
         self.last_message_id = message.id.clone();

@@ -27,4 +27,5 @@ pub fn more(
             String::from("There's nothing to !more for you, sorry."),
             String::new(),
         )),
-    }}
+    }
+}

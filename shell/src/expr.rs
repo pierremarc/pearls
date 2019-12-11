@@ -16,6 +16,7 @@ pub enum Command {
     Ping,
     Add(String, time::Duration),
     Do(String, String, time::Duration),
+    Switch(String, String),
     Stop,
     More(time::Duration),
     List,
@@ -153,6 +154,14 @@ fn start() -> CommandParser {
     let d = duration();
     let all = cn + id + task + d;
     all.map(|(((_, project_name), task), duration)| Command::Do(project_name, task, duration))
+}
+
+fn switch() -> CommandParser {
+    let cn = seq(b"!switch") - space();
+    let id = ident() - space();
+    let task = ident() - space();
+    let all = cn + id + task;
+    all.map(|((_, project_name), task)| Command::Switch(project_name, task))
 }
 
 fn stop() -> CommandParser {
