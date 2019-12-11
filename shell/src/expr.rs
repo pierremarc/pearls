@@ -189,7 +189,7 @@ fn since() -> CommandParser {
 }
 
 fn command() -> CommandParser {
-    ping() | add() | start() | stop() | list() | project() | since() | more()
+    ping() | add() | start() | stop() | list() | project() | since() | more() | switch()
 }
 
 pub fn parse_command<'a>(expr: &'a str) -> Result<Command, Error> {

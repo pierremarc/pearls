@@ -7,6 +7,8 @@ pub fn help() -> Option<(String, String)> {
             register a new project
         !do <project-name> <task-name> <duration>
             start a new task
+        !switch <project-name> <task-name>
+            stop your current task and create a new one that has the same end time as the current one
         !stop
             stop your current task
         !more <duration>
@@ -25,8 +27,10 @@ pub fn help() -> Option<(String, String)> {
         <h4>!new <em>project-name</em> <em>hours</em></h4>
             register a new project
         <h4>!do <em>project-name</em> <em>task-name</em> <em>duration</em></h4>
-            <p>start a new task</p>
-            <p>you'll be notified of its ending</p>
+        <p>start a new task</p>
+        <p>you'll be notified of its ending</p>
+        <h4>!switch <em>project-name</em> <em>task-name</em></em></h4>
+            stop your current task and create a new one that has the same end time as the current one
         <h4>!stop</h4>
             stop your current task
         <h4>!more <em>duration</em></h4>
