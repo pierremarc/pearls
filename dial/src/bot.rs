@@ -52,13 +52,17 @@ impl CommandHandler {
     fn parse_command(&mut self, user: String, body: String) -> Option<(String, String)> {
         match parse_command(&body) {
             Ok(com) => {
-                let cc = com.clone();
                 let u = user.clone();
                 match com {
                     Command::Ping => Some(("pong".into(), String::new())),
                     Command::List => make::list(self),
                     Command::Add(project, d) => make::new(self, u, project.clone(), d.clone()),
-                    Command::Do(_, _, _) => make::start(self, u, cc),
+                    Command::Do(project, task, duration) => {
+                        make::start(self, u, duration, project, task)
+                    }
+                    Command::Done(project, task, duration) => {
+                        make::done(self, u, duration, project, task)
+                    }
                     Command::Stop => make::stop(self, u),
                     Command::More(d) => make::more(self, u, d.clone()),
                     Command::Project(project) => make::project(self, project),
@@ -66,7 +70,10 @@ impl CommandHandler {
                     Command::Switch(project, task) => make::switch(self, u, project, task),
                 }
             }
-            Err(_) => make::help(),
+            Err(err) => {
+                println!("ParseError: {}", err);
+                make::help()
+            }
         }
     }
 }

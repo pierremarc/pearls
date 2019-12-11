@@ -55,6 +55,7 @@ pub enum Name {
     UpdateTaskEnd,
     SelectCurrentTask,
     SelectCurrentTaskFor,
+    SelectLatestTaskFor,
     SelectEndingTask,
     SelectProjectInfo,
     SelectProject,
@@ -68,6 +69,7 @@ fn sql(name: Name) -> &'static str {
         Name::InsertNotification => include_str!("sql/insert_notification.sql"),
         Name::SelectCurrentTask => include_str!("sql/select_current_task.sql"),
         Name::SelectCurrentTaskFor => include_str!("sql/select_current_task_for.sql"),
+        Name::SelectLatestTaskFor => include_str!("sql/select_latest_task_for.sql"),
         Name::SelectEndingTask => include_str!("sql/select_ending_task.sql"),
         Name::UpdateTaskEnd => include_str!("sql/update_task_end.sql"),
         Name::SelectProject => include_str!("sql/select_project.sql"),
@@ -135,21 +137,24 @@ impl Store {
         }
     }
 
-    pub fn log(&mut self, rec: &Record) -> Result<usize, StoreError> {
-        match &rec.command {
-            Command::Do(project, task, duration) => self.exec(
-                Name::InsertDo,
-                named_params! {
-                    ":username": rec.username,
-                    ":start": ts(&rec.time),
-                    ":end": ts(&rec.time) + dur(duration),
-                    ":project": project,
-                    ":task": task,
-                },
-            ),
-
-            _ => Err(StoreError::LogRecord),
-        }
+    pub fn insert_do(
+        &mut self,
+        user: String,
+        start: time::SystemTime,
+        end: time::SystemTime,
+        project: String,
+        task: String,
+    ) -> Result<usize, StoreError> {
+        self.exec(
+            Name::InsertDo,
+            named_params! {
+                ":username": user,
+                ":start": ts(&start),
+                ":end": ts(&end),
+                ":project": project,
+                ":task": task,
+            },
+        )
     }
 
     pub fn insert_project(
@@ -204,6 +209,19 @@ impl Store {
             named_params! {
                 ":user": user.clone(),
                 ":now": ts(&now),
+            },
+            f,
+        )
+    }
+
+    pub fn select_latest_task_for<F, T>(&self, user: String, f: F) -> Result<Vec<T>, StoreError>
+    where
+        F: FnMut(&Row) -> SqlResult<T>,
+    {
+        self.map_rows(
+            Name::SelectLatestTaskFor,
+            named_params! {
+                ":user": user.clone(),
             },
             f,
         )

@@ -1,6 +1,4 @@
 use crate::bot;
-use shell::expr::Command;
-use shell::store::Record;
 use std::time;
 
 pub fn more(
@@ -22,11 +20,10 @@ pub fn more(
 
     match pendings.first() {
         Some((id, task, project)) => match handler.store.update_task_end(*id, now).and_then(|_| {
-            handler.store.log(&Record::new(
-                now,
-                user.clone(),
-                Command::Do(project.clone(), task.clone(), duration),
-            ))
+            let end = now + duration;
+            handler
+                .store
+                .insert_do(user, now, end, project.clone(), task.clone())
         }) {
             Err(err) => Some((format!("Error: {}", err), String::new())),
             Ok(_) => Some((format!("Keep up the good work!"), String::new())),

@@ -1,3 +1,4 @@
+mod done;
 mod help;
 mod list;
 mod more;
@@ -8,6 +9,7 @@ mod start;
 mod stop;
 mod switch;
 
+pub use crate::make::done::done;
 pub use crate::make::help::help;
 pub use crate::make::list::list;
 pub use crate::make::more::more;

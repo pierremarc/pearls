@@ -1,14 +1,13 @@
 use crate::bot;
-use shell::expr::Command;
-use shell::store::Record;
 use std::time;
 
 pub fn start(
     handler: &mut bot::CommandHandler,
     user: String,
-    com: Command,
+    duration: time::Duration,
+    project: String,
+    task: String,
 ) -> Option<(String, String)> {
-    let now = time::SystemTime::now();
     let pendings = handler
         .store
         .select_current_task(|row| {
@@ -20,17 +19,20 @@ pub fn start(
     match pendings.iter().find(|&(u, _)| u == &user) {
         Some((_, task)) => Some((
             format!(
-                "You are already doing {}, you should stop it with !stop",
+                "You are already doing {}, you should stop it first with !stop or use !switch",
                 task
             ),
             String::new(),
         )),
         None => {
-            handler
+            let start = time::SystemTime::now();
+            match handler
                 .store
-                .log(&Record::new(now, user.clone(), com))
-                .unwrap();
-            Some(("doing OK".into(), String::new()))
+                .insert_do(user, start, start + duration, project, task)
+            {
+                Ok(_) => Some(("doing OK".into(), String::new())),
+                Err(err) => Some((format!("Error: {}", err), String::new())),
+            }
         }
     }
 }

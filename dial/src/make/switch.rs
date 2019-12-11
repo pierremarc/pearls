@@ -1,6 +1,4 @@
 use crate::bot;
-use shell::expr::Command;
-use shell::store::Record;
 use shell::util::st_from_ts;
 use std::time;
 
@@ -26,17 +24,8 @@ pub fn switch(
             .store
             .update_task_end(*id, now.clone())
             .and_then(|_| {
-                handler.store.log(&Record::new(
-                    now,
-                    user.clone(),
-                    Command::Do(
-                        project,
-                        task.clone(),
-                        st_from_ts(*end)
-                            .duration_since(now)
-                            .unwrap_or(time::Duration::from_secs(0)),
-                    ),
-                ))
+                let end_time = st_from_ts(*end);
+                handler.store.insert_do(user, now, end_time, project, task.clone())
             }) {
             Err(err) => Some((format!("Error: {}", err), String::new())),
             Ok(_) => Some((format!("Good {}ing!", task.clone()), String::new())),
