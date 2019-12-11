@@ -16,6 +16,7 @@ pub enum Command {
     Ping,
     Add(String, time::Duration),
     Do(String, String, time::Duration),
+    Done(String, String, time::Duration),
     Switch(String, String),
     Stop,
     More(time::Duration),
@@ -36,12 +37,12 @@ pub enum Command {
 // impl Error for ParseCommandError {}
 
 fn space() -> Parser<u8, ()> {
-    one_of(b" \t\r\n").repeat(0..).discard()
+    one_of(b" \t\r\n").repeat(1..).discard()
 }
 
 fn string() -> Parser<u8, String> {
     let any = is_a(|_| true);
-    let char_string = any.repeat(0..) - (sym(b'.') | end().map(|_| b'.'));
+    let char_string = any.repeat(1..) - (sym(b'.') | end().map(|_| b'.'));
     char_string.convert(|chars| String::from_utf8(chars))
 }
 
@@ -81,11 +82,31 @@ fn ident() -> Parser<u8, String> {
     char_string.convert(|chars| String::from_utf8(chars))
 }
 
+// fn duration_() -> Parser<u8, time::Duration> {
+//     string().map(|s| match humantime::parse_duration(&s) {
+//         Ok(d) => d,
+//         Err(err) => time::Duration::from_secs(0),
+//     })
+// }
+
 fn duration() -> Parser<u8, time::Duration> {
-    string().map(|s| match humantime::parse_duration(&s) {
-        Ok(d) => d,
-        Err(_) => time::Duration::new(0, 0),
-    })
+    let string_parser = string();
+    Parser::new(
+        move |input: &[u8], start: usize| match string_parser.parse(&input[start..]) {
+            Err(e) => Err(e),
+            Ok(s) => match humantime::parse_duration(&s) {
+                Ok(d) => Ok((d, start + s.len())),
+                Err(err) => {
+                    println!("err({}) {}", s, err);
+                    Err(pom::Error::Custom {
+                        message: format!("HumanTimeError {}", err),
+                        position: start,
+                        inner: None,
+                    })
+                }
+            },
+        },
+    )
 }
 
 fn st_from_ts(ts: i64) -> time::SystemTime {
@@ -129,7 +150,7 @@ type CommandParser = Parser<u8, Command>;
 
 fn ping() -> CommandParser {
     let cn = seq(b"!ping");
-    cn.map(|_| Command::Ping)
+    cn.map(|_| Command::Ping).name("ping")
 }
 
 fn add() -> CommandParser {
@@ -138,6 +159,7 @@ fn add() -> CommandParser {
     let dur = integer().map(|n| time::Duration::from_secs(u64::from(n) * 60u64 * 60u64));
     let all = cn + id + dur;
     all.map(|((_, project_name), duration)| Command::Add(project_name, duration))
+        .name("new")
 }
 
 fn project() -> CommandParser {
@@ -145,6 +167,7 @@ fn project() -> CommandParser {
     let id = ident() - space();
     let all = cn + id;
     all.map(|(_, project_name)| Command::Project(project_name))
+        .name("project")
 }
 
 fn start() -> CommandParser {
@@ -154,6 +177,17 @@ fn start() -> CommandParser {
     let d = duration();
     let all = cn + id + task + d;
     all.map(|(((_, project_name), task), duration)| Command::Do(project_name, task, duration))
+        .name("do")
+}
+
+fn done() -> CommandParser {
+    let cn = seq(b"!done") - space();
+    let id = ident() - space();
+    let task = ident() - space();
+    let d = duration();
+    let all = cn + id + task + d;
+    all.map(|(((_, project_name), task), duration)| Command::Done(project_name, task, duration))
+        .name("done")
 }
 
 fn switch() -> CommandParser {
@@ -162,11 +196,12 @@ fn switch() -> CommandParser {
     let task = ident() - space();
     let all = cn + id + task;
     all.map(|((_, project_name), task)| Command::Switch(project_name, task))
+        .name("switch")
 }
 
 fn stop() -> CommandParser {
     let cn = seq(b"!stop");
-    cn.map(|_| Command::Stop)
+    cn.map(|_| Command::Stop).name("stop")
 }
 
 fn more() -> CommandParser {
@@ -174,22 +209,35 @@ fn more() -> CommandParser {
     let d = duration();
     let all = cn + d;
     all.map(|(_, duration)| Command::More(duration))
+        .name("more")
 }
 
 fn list() -> CommandParser {
     let cn = seq(b"!ls");
-    cn.map(|_| Command::List)
+    cn.map(|_| Command::List).name("list")
 }
 
 fn since() -> CommandParser {
     let cn = seq(b"!since");
     let t = date() | duration().map(|d| time::SystemTime::now() - d);
     let all = cn - space() + t;
-    all.map(|(_, st)| Command::Since(st))
+    all.map(|(_, st)| Command::Since(st)).name("since")
 }
 
 fn command() -> CommandParser {
-    ping() | add() | start() | stop() | list() | project() | since() | more() | switch()
+    {
+        ping()
+            | add()
+            | start()
+            | done()
+            | stop()
+            | list()
+            | project()
+            | since()
+            | more()
+            | switch()
+    }
+    .name("command")
 }
 
 pub fn parse_command<'a>(expr: &'a str) -> Result<Command, Error> {
@@ -234,4 +282,15 @@ mod tests {
         assert_eq!(parse_command("!stop"), Ok(Command::Stop));
         assert_eq!(parse_command("!ls"), Ok(Command::List));
     }
+    // #[test]
+    // fn parse_command_error() {
+    //     assert_eq!(
+    //         parse_command("!don foo dev 3h 30m"),
+    //         Ok(Command::Do(
+    //             "foo".into(),
+    //             "dev".into(),
+    //             time::Duration::from_secs(3 * 60 * 60 + (30 * 60))
+    //         ))
+    //     );
+    // }
 }
