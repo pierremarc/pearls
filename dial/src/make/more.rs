@@ -13,7 +13,7 @@ pub fn more(
         .select_current_task_for(user.clone(), |row| {
             let id: i64 = row.get(0)?;
             let project: String = row.get(4)?;
-            let task: String = row.get(4)?;
+            let task: String = row.get(5)?;
             Ok((id, task, project))
         })
         .unwrap_or(empty);
