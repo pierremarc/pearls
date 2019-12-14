@@ -5,7 +5,7 @@ use matrix_bot_api::handlers::{HandleResult, Message, MessageHandler};
 use matrix_bot_api::{ActiveBot, MatrixBot, MessageType};
 use shell::expr::{parse_command, Command};
 use shell::store::Store;
-use shell::util::{human_ts, ts};
+use shell::util::{dur, human_duration, ts};
 use std::path::Path;
 use std::thread;
 use std::time;
@@ -25,13 +25,13 @@ impl NotificationHandler for Notifier {
                 .store
                 .insert_notification(tid, end)
                 .map(|_| {
-                    let now = ts(&time::SystemTime::now());
-                    let d = end - now;
-                    println!("now={}, end={}, d={}", now, end, d / 1000);
+                    let now = time::SystemTime::now();
+                    let d = end.duration_since(now).unwrap_or(time::Duration::from_secs(0));
+                    println!("now={}, end={}, d={}", ts(&now), ts(&end), dur(&d) / 1000);
                     let msg = format!(
                         "{}: your current task will end in {}\nYou can !more <duration> to continue",
                         user,
-                        human_ts(d)
+                        human_duration(d)
                     );
                     self.bot
                         .send_message(&msg, &self.room_id, MessageType::TextMessage);

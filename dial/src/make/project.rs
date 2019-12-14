@@ -1,52 +1,51 @@
 use crate::bot;
-use shell::util::{human_ts, make_table_row, split};
+use shell::util::{dur, human_duration, make_table_row, split};
+use std::time;
 
 pub fn project(handler: &mut bot::CommandHandler, project: String) -> Option<(String, String)> {
-    let available = match handler.store.select_project_info(project.clone(), |row| {
-        let _username: String = row.get(2)?;
-        let _start: i64 = row.get(3)?;
-        let dur: i64 = row.get(4)?;
-        Ok(dur / (1000 * 60 * 60))
-    }) {
-        Err(_) => Vec::new(),
-        Ok(ref d) => {
-            let v = d;
-            v.clone()
-        }
-    };
+    let available = handler
+        .store
+        .select_project_info(project.clone())
+        .unwrap_or(Vec::new());
 
-    match handler.store.select_project(project.clone(), |row| {
-        let username: String = row.get(1)?;
-        let task: String = row.get(2)?;
-        let spent_millis: i64 = row.get(3)?;
-        let spent = human_ts(spent_millis);
-        Ok((
-            format!("{}\t{}\t{}", username, task, spent),
-            make_table_row(vec![username, task, format!("{}", spent)]),
-            spent_millis / (1000 * 60 * 60),
-        ))
-    }) {
-        Ok(ref results) => {
-            let ((left, right), spent) = (
-                split(
-                    results
-                        .into_iter()
-                        .map(|(l, r, _)| (l.clone(), r.clone()))
-                        .collect(),
-                ),
-                results.iter().map(|(_, _, s)| *s).collect::<Vec<i64>>(),
+    match handler.store.select_project(project.clone()) {
+        Ok(ref recs) => {
+            let (left, right) = split(
+                recs.into_iter()
+                    .map(|rec| {
+                        let spent = human_duration(rec.duration);
+                        (
+                            format!("{}\t{}\t{}", rec.username, rec.task, spent),
+                            make_table_row(vec![
+                                rec.username.clone(),
+                                rec.task.clone(),
+                                format!("{}", spent),
+                            ]),
+                        )
+                    })
+                    .collect(),
             );
-            let done: i64 = spent.iter().fold(0, |acc, x| acc + x);
+            let done = recs.iter().fold(0, |acc, rec| {
+                acc + dur(&rec
+                    .end_time
+                    .duration_since(rec.start_time)
+                    .unwrap_or(time::Duration::from_secs(0)))
+            });
             let (h0, h1) = available
                 .first()
-                .map(|n| {
+                .map(|rec| {
                     (
-                        format!("{} hours available, {} hours done\n", n, done),
+                        format!(
+                            "{} hours available, {} hours done\n",
+                            dur(&rec.duration) / (1000 * 60 * 60),
+                            done / (1000 * 60 * 60)
+                        ),
                         format!(
                             "
                             <div><code>available: {} hours </code> </div>
                             <div><code>done: {} hours </code></div>",
-                            n, done
+                            dur(&rec.duration) / (1000 * 60 * 60),
+                            done / (1000 * 60 * 60)
                         ),
                     )
                 })

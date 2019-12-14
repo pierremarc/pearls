@@ -1,5 +1,5 @@
 use crate::bot;
-use shell::util::{human_duration, st_from_ts};
+use shell::util::human_duration;
 use std::time;
 
 pub fn done(
@@ -10,20 +10,13 @@ pub fn done(
     task: String,
 ) -> Option<(String, String)> {
     let now = time::SystemTime::now();
-    let pendings = handler
-        .store
-        .select_current_task(|row| {
-            let username: String = row.get(1)?;
-            let task: String = row.get(5)?;
-            Ok((username, task))
-        })
-        .unwrap_or(Vec::new());
+    let pendings = handler.store.select_current_task().unwrap_or(Vec::new());
 
-    match pendings.iter().find(|&(u, _)| u == &user) {
-        Some((_, task)) => Some((
+    match pendings.iter().find(|rec| rec.username == user) {
+        Some(rec) => Some((
             format!(
                 "You are already doing {}, you're covered, or tricky :)",
-                task
+                rec.task
             ),
             String::new(),
         )),
@@ -31,13 +24,13 @@ pub fn done(
             let given_start = now - duration;
             let start = handler
                 .store
-                .select_latest_task_for(user.clone(), |row| {
-                    let end: i64 = row.get(3)?;
-                    let end_time = st_from_ts(end);
-                    Ok(end_time)
-                })
+                .select_latest_task_for(user.clone())
                 .map(|res| {
-                    let i = res.get(0).unwrap_or(&given_start).clone();
+                    let i = res
+                        .first()
+                        .map(|rec| rec.start_time)
+                        .unwrap_or(given_start)
+                        .clone();
                     i
                 })
                 .unwrap_or(given_start);

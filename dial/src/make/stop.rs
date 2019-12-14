@@ -2,17 +2,16 @@ use crate::bot;
 use std::time;
 
 pub fn stop(handler: &mut bot::CommandHandler, user: String) -> Option<(String, String)> {
-    let empty: Vec<i64> = Vec::new();
     let pendings = handler
         .store
-        .select_current_task_for(user.clone(), |row| {
-            let id: i64 = row.get(0)?;
-            Ok(id)
-        })
-        .unwrap_or(empty);
+        .select_current_task_for(user.clone())
+        .unwrap_or(Vec::new());
     let pending = pendings.first();
     match pending {
-        Some(id) => match handler.store.update_task_end(*id, time::SystemTime::now()) {
+        Some(rec) => match handler
+            .store
+            .update_task_end(rec.id, time::SystemTime::now())
+        {
             Err(_) => None,
             Ok(_) => Some((
                 "Done, you can !do a new one".into(),

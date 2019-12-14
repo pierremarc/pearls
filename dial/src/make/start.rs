@@ -8,19 +8,12 @@ pub fn start(
     project: String,
     task: String,
 ) -> Option<(String, String)> {
-    let pendings = handler
-        .store
-        .select_current_task(|row| {
-            let username: String = row.get(1)?;
-            let task: String = row.get(5)?;
-            Ok((username, task))
-        })
-        .unwrap_or(Vec::new());
-    match pendings.iter().find(|&(u, _)| u == &user) {
-        Some((_, task)) => Some((
+    let pendings = handler.store.select_current_task().unwrap_or(Vec::new());
+    match pendings.iter().find(|rec| rec.username == user) {
+        Some(rec) => Some((
             format!(
                 "You are already doing {}, you should stop it first with !stop or use !switch",
-                task
+                rec.task
             ),
             String::new(),
         )),

@@ -4,7 +4,18 @@ use std::convert::{TryFrom, TryInto};
 use std::time;
 
 pub fn st_from_ts(ts: i64) -> time::SystemTime {
-    time::SystemTime::UNIX_EPOCH + time::Duration::from_millis(ts.try_into().unwrap())
+    time::SystemTime::UNIX_EPOCH
+        + time::Duration::from_millis(
+            ts.try_into()
+                .expect("Could not turn an signed timestamp into an unsigned one"),
+        )
+}
+
+pub fn dur_from_ts(ts: i64) -> time::Duration {
+    time::Duration::from_millis(
+        ts.try_into()
+            .expect("Could not turn an signed timestamp into an unsigned one"),
+    )
 }
 
 pub fn human_ts(millis: i64) -> String {

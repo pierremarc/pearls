@@ -5,7 +5,7 @@ use std::thread;
 use std::time;
 
 pub enum Notification {
-    EndOfTask(i64, i64, String),
+    EndOfTask(i64, time::SystemTime, String),
 }
 
 pub trait NotificationHandler {
@@ -21,15 +21,14 @@ where
             thread::spawn(move || {
                 let mut h: Box<dyn NotificationHandler + Send> = Box::new(handler);
                 for _ in tick(time::Duration::from_millis(2_000)).iter() {
-                    match store.select_ending_tasks(|row| {
-                        let task_id: i64 = row.get(0)?;
-                        let username: String = row.get(1)?;
-                        let end_time: i64 = row.get(2)?;
-                        Ok(Notification::EndOfTask(task_id, end_time, username))
-                    }) {
-                        Ok(notifs) => {
-                            for n in notifs.into_iter() {
-                                h.notify(n);
+                    match store.select_ending_tasks() {
+                        Ok(recs) => {
+                            for rec in recs.into_iter() {
+                                h.notify(Notification::EndOfTask(
+                                    rec.id,
+                                    rec.end_time,
+                                    rec.username,
+                                ));
                             }
                         }
                         Err(_) => println!("notifications Error"),

@@ -1,4 +1,5 @@
 use crate::bot;
+use shell::store::TaskRecord;
 use std::time;
 
 pub fn more(
@@ -7,23 +8,18 @@ pub fn more(
     duration: time::Duration,
 ) -> Option<(String, String)> {
     let now = time::SystemTime::now();
-    let empty: Vec<(i64, String, String)> = Vec::new();
+    let empty: Vec<TaskRecord> = Vec::new();
     let pendings = handler
         .store
-        .select_current_task_for(user.clone(), |row| {
-            let id: i64 = row.get(0)?;
-            let project: String = row.get(4)?;
-            let task: String = row.get(5)?;
-            Ok((id, task, project))
-        })
+        .select_current_task_for(user.clone())
         .unwrap_or(empty);
 
     match pendings.first() {
-        Some((id, task, project)) => match handler.store.update_task_end(*id, now).and_then(|_| {
+        Some(rec) => match handler.store.update_task_end(rec.id, now).and_then(|_| {
             let end = now + duration;
             handler
                 .store
-                .insert_do(user, now, end, project.clone(), task.clone())
+                .insert_do(user, now, end, rec.project.clone(), rec.task.clone())
         }) {
             Err(err) => Some((format!("Error: {}", err), String::new())),
             Ok(_) => Some((format!("Keep up the good work!"), String::new())),

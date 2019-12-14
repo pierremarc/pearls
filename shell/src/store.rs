@@ -1,5 +1,4 @@
-use crate::expr::Command;
-use crate::util::{dur, ts};
+use crate::util::{dur, dur_from_ts, st_from_ts, ts};
 use rusqlite::{named_params, Connection, Result as SqlResult, Row, ToSql, NO_PARAMS};
 use serde::{Deserialize, Serialize};
 use std;
@@ -8,19 +7,69 @@ use std::path::Path;
 use std::time;
 
 #[derive(Serialize, Deserialize)]
-pub struct Record {
-    pub time: time::SystemTime,
+pub struct TaskRecord {
+    pub id: i64,
     pub username: String,
-    pub command: Command,
+    pub start_time: time::SystemTime,
+    pub end_time: time::SystemTime,
+    pub project: String,
+    pub task: String,
 }
 
-impl Record {
-    pub fn new(time: time::SystemTime, username: String, command: Command) -> Record {
-        Record {
-            time,
-            username,
-            command,
-        }
+impl TaskRecord {
+    fn from_row(row: &Row) -> SqlResult<TaskRecord> {
+        Ok(TaskRecord {
+            id: row.get(0)?,
+            username: row.get(1)?,
+            start_time: st_from_ts(row.get(2)?),
+            end_time: st_from_ts(row.get(3)?),
+            project: row.get(4)?,
+            task: row.get(5)?,
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct AggregatedTaskRecord {
+    pub project: String,
+    pub username: String,
+    pub task: String,
+    pub start_time: time::SystemTime,
+    pub end_time: time::SystemTime,
+    pub duration: time::Duration,
+}
+
+impl AggregatedTaskRecord {
+    fn from_row(row: &Row) -> SqlResult<AggregatedTaskRecord> {
+        Ok(AggregatedTaskRecord {
+            project: row.get(0)?,
+            username: row.get(1)?,
+            task: row.get(2)?,
+            start_time: st_from_ts(row.get(3)?),
+            end_time: st_from_ts(row.get(4)?),
+            duration: dur_from_ts(row.get(5)?),
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ProjectRecord {
+    pub id: i64,
+    pub name: String,
+    pub username: String,
+    pub start_time: time::SystemTime,
+    pub duration: time::Duration,
+}
+
+impl ProjectRecord {
+    fn from_row(row: &Row) -> SqlResult<ProjectRecord> {
+        Ok(ProjectRecord {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            username: row.get(2)?,
+            start_time: st_from_ts(row.get(3)?),
+            duration: dur_from_ts(row.get(4)?),
+        })
     }
 }
 
@@ -104,7 +153,7 @@ impl Store {
         Path::new(&self.path)
     }
 
-    pub fn exec(&self, name: Name, params: &[(&str, &dyn ToSql)]) -> Result<usize, StoreError> {
+    fn exec(&self, name: Name, params: &[(&str, &dyn ToSql)]) -> Result<usize, StoreError> {
         match self.conn.execute_named(sql(name), params) {
             Ok(s) => Ok(s),
             Err(err) => {
@@ -175,34 +224,32 @@ impl Store {
         )
     }
 
-    pub fn insert_notification(&mut self, tid: i64, end: i64) -> Result<usize, StoreError> {
+    pub fn insert_notification(
+        &mut self,
+        tid: i64,
+        end: time::SystemTime,
+    ) -> Result<usize, StoreError> {
         self.exec(
             Name::InsertNotification,
             named_params! {
                 ":tid": tid,
-                ":end":  end,
+                ":end":  ts(&end),
             },
         )
     }
 
-    pub fn select_current_task<F, T>(&self, f: F) -> Result<Vec<T>, StoreError>
-    where
-        F: FnMut(&Row) -> SqlResult<T>,
-    {
+    pub fn select_current_task(&self) -> Result<Vec<TaskRecord>, StoreError> {
         let now = time::SystemTime::now();
         self.map_rows(
             Name::SelectCurrentTask,
             named_params! {
                 ":now": ts(&now),
             },
-            f,
+            TaskRecord::from_row,
         )
     }
 
-    pub fn select_current_task_for<F, T>(&self, user: String, f: F) -> Result<Vec<T>, StoreError>
-    where
-        F: FnMut(&Row) -> SqlResult<T>,
-    {
+    pub fn select_current_task_for(&self, user: String) -> Result<Vec<TaskRecord>, StoreError> {
         let now = time::SystemTime::now();
         self.map_rows(
             Name::SelectCurrentTaskFor,
@@ -210,65 +257,52 @@ impl Store {
                 ":user": user.clone(),
                 ":now": ts(&now),
             },
-            f,
+            TaskRecord::from_row,
         )
     }
 
-    pub fn select_latest_task_for<F, T>(&self, user: String, f: F) -> Result<Vec<T>, StoreError>
-    where
-        F: FnMut(&Row) -> SqlResult<T>,
-    {
+    pub fn select_latest_task_for(&self, user: String) -> Result<Vec<TaskRecord>, StoreError> {
         self.map_rows(
             Name::SelectLatestTaskFor,
             named_params! {
                 ":user": user.clone(),
             },
-            f,
+            TaskRecord::from_row,
         )
     }
 
-    pub fn select_project_info<F, T>(&self, project: String, f: F) -> Result<Vec<T>, StoreError>
-    where
-        F: FnMut(&Row) -> SqlResult<T>,
-    {
+    pub fn select_project_info(&self, project: String) -> Result<Vec<ProjectRecord>, StoreError> {
         self.map_rows(
             Name::SelectProjectInfo,
             named_params! {
                 ":project": project.clone(),
             },
-            f,
+            ProjectRecord::from_row,
         )
     }
 
-    pub fn select_project<F, T>(&self, project: String, f: F) -> Result<Vec<T>, StoreError>
-    where
-        F: FnMut(&Row) -> SqlResult<T>,
-    {
+    pub fn select_project(&self, project: String) -> Result<Vec<AggregatedTaskRecord>, StoreError> {
         self.map_rows(
             Name::SelectProject,
             named_params! {
                 ":project": project.clone(),
             },
-            f,
+            AggregatedTaskRecord::from_row,
         )
     }
 
-    pub fn select_user<F, T>(
+    pub fn select_user(
         &self,
         user: String,
         since: time::SystemTime,
-        f: F,
-    ) -> Result<Vec<T>, StoreError>
-    where
-        F: FnMut(&Row) -> SqlResult<T>,
-    {
+    ) -> Result<Vec<AggregatedTaskRecord>, StoreError> {
         self.map_rows(
             Name::SelectUser,
             named_params! {
                 ":user": user.clone(),
                 ":since": ts(&since),
             },
-            f,
+            AggregatedTaskRecord::from_row,
         )
     }
 
@@ -282,16 +316,13 @@ impl Store {
         )
     }
 
-    pub fn select_ending_tasks<F, T>(&self, f: F) -> Result<Vec<T>, StoreError>
-    where
-        F: FnMut(&Row) -> SqlResult<T>,
-    {
+    pub fn select_ending_tasks(&self) -> Result<Vec<TaskRecord>, StoreError> {
         self.map_rows(
             Name::SelectEndingTask,
             named_params! {
                 ":now": ts(&time::SystemTime::now()),
             },
-            f,
+            TaskRecord::from_row,
         )
     }
 }

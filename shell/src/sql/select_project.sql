@@ -1,5 +1,5 @@
 SELECT 
-    project, username, task, SUM(end_time - start_time)
+    project, username, task, start_time, end_time , SUM(end_time - start_time)
 FROM 
     command_do 
 WHERE

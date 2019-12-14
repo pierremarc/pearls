@@ -1,5 +1,5 @@
 use crate::bot;
-use shell::util::{human_ts, make_table_row, split};
+use shell::util::{human_duration, make_table_row, split};
 use std::time;
 
 pub fn since(
@@ -7,19 +7,28 @@ pub fn since(
     user: String,
     since: time::SystemTime,
 ) -> Option<(String, String)> {
-    match handler
-        .store
-        .select_user(user.clone(), since.clone(), |row| {
-            let project: String = row.get(0)?;
-            let task: String = row.get(1)?;
-            let sum: i64 = row.get(2)?;
-            Ok((
-                format!("{}\t{}\t{}", project, task, human_ts(sum)),
-                make_table_row(vec![project, task, format!("{}", human_ts(sum))]),
-            ))
-        }) {
+    match handler.store.select_user(user.clone(), since) {
         Ok(results) => {
-            let (left, right) = split(results);
+            let (left, right) = split(
+                results
+                    .into_iter()
+                    .map(|rec| {
+                        (
+                            format!(
+                                "{}\t{}\t{}",
+                                rec.project,
+                                rec.task,
+                                human_duration(rec.duration)
+                            ),
+                            make_table_row(vec![
+                                rec.project,
+                                rec.task,
+                                format!("{}", human_duration(rec.duration)),
+                            ]),
+                        )
+                    })
+                    .collect(),
+            );
             Some((
                 left.join("\n"),
                 format!("<table>{}</table>", right.join("\n")),

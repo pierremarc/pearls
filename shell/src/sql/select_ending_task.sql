@@ -1,7 +1,10 @@
 SELECT
   d.id,
   d.username,
-  d.end_time
+  d.start_time,
+  d.end_time,
+  d.project,
+  d.task
 FROM command_do as d
 LEFT JOIN notif as n ON d.id = n.task_id
 WHERE
