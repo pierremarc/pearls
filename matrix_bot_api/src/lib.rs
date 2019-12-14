@@ -20,7 +20,7 @@
 //! Thus a message can be handled by multiple handlers as well (for example for "help").
 //!
 //! # Example
-//! ```
+//! ```no-run
 //! extern crate matrix_bot_api;
 //! use matrix_bot_api::{MatrixBot, MessageType};
 //! use matrix_bot_api::handlers::{StatelessHandler, HandleResult};

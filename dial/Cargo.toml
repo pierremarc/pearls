@@ -15,3 +15,4 @@ crossbeam-channel = "0.4"
 # matrix_bot_api = {git="https://github.com/zwieberl/matrix_bot_api"}
 matrix_bot_api = { path = "../matrix_bot_api" }
 shell = { path = "../shell" }
+html = {path = "../html"}

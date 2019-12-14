@@ -1,5 +1,6 @@
 use crate::bot;
-use shell::util::{human_duration, make_table_row, split};
+use html::{table, Element};
+use shell::util::{human_duration, make_table_row};
 use std::time;
 
 pub fn since(
@@ -9,30 +10,29 @@ pub fn since(
 ) -> Option<(String, String)> {
     match handler.store.select_user(user.clone(), since) {
         Ok(results) => {
-            let (left, right) = split(
-                results
-                    .into_iter()
-                    .map(|rec| {
-                        (
-                            format!(
-                                "{}\t{}\t{}",
-                                rec.project,
-                                rec.task,
-                                human_duration(rec.duration)
-                            ),
-                            make_table_row(vec![
-                                rec.project,
-                                rec.task,
-                                format!("{}", human_duration(rec.duration)),
-                            ]),
-                        )
-                    })
-                    .collect(),
-            );
-            Some((
-                left.join("\n"),
-                format!("<table>{}</table>", right.join("\n")),
-            ))
+            let left: Vec<String> = results
+                .iter()
+                .map(|rec| {
+                    format!(
+                        "{}\t{}\t{}",
+                        rec.project,
+                        rec.task,
+                        human_duration(rec.duration)
+                    )
+                })
+                .collect();
+            let rows: Vec<Element> = results
+                .iter()
+                .map(|rec| {
+                    make_table_row(vec![
+                        rec.project.clone(),
+                        rec.task.clone(),
+                        format!("{}", human_duration(rec.duration)),
+                    ])
+                })
+                .collect();
+
+            Some((left.join("\n"), table(rows).as_string()))
         }
         Err(_) => None,
     }

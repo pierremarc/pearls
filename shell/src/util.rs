@@ -1,5 +1,7 @@
 use chrono;
+use chrono::TimeZone;
 use chrono_humanize;
+use html::{td, tr, Element};
 use std::convert::{TryFrom, TryInto};
 use std::time;
 
@@ -45,13 +47,21 @@ pub fn ts(t: &time::SystemTime) -> i64 {
         .unwrap_or(time::Duration::from_millis(0)))
 }
 
-pub fn make_table_row(cells: Vec<String>) -> String {
-    let inner: String = cells
-        .iter()
-        .map(|s| format!("<td>{}</td>", s))
-        .collect::<Vec<String>>()
-        .join("");
-    format!("<tr>{}</tr>", inner)
+pub fn date_time_from_st(t: &time::SystemTime) -> chrono::DateTime<chrono::Local> {
+    let duration = t
+        .duration_since(time::UNIX_EPOCH)
+        .unwrap_or(time::Duration::from_millis(0));
+    chrono::Local.timestamp(duration.as_secs().try_into().unwrap_or(i64::max_value()), 0)
+}
+
+pub fn st_from_date_time(t: &chrono::DateTime<chrono::Local>) -> time::SystemTime {
+    time::UNIX_EPOCH
+        + time::Duration::from_millis(t.timestamp_millis().try_into().unwrap_or(u64::max_value()))
+}
+
+pub fn make_table_row(cells: Vec<String>) -> Element {
+    let inner: Vec<Element> = cells.iter().map(|s| td(s.clone())).collect();
+    tr(inner)
 }
 
 // fn join(a: Vec<String>, b: Vec<String>) -> (String, String) {
