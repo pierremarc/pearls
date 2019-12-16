@@ -5,6 +5,7 @@ use std;
 use std::fmt;
 use std::path::Path;
 use std::time;
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
 pub struct TaskRecord {
@@ -73,6 +74,25 @@ impl ProjectRecord {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct CalRecord {
+    pub id: i64,
+    pub uuid: String,
+    pub creation_time: time::SystemTime,
+    pub content: String,
+}
+
+impl CalRecord {
+    fn from_row(row: &Row) -> SqlResult<CalRecord> {
+        Ok(CalRecord {
+            id: row.get(0)?,
+            uuid: row.get(1)?,
+            creation_time: st_from_ts(row.get(2)?),
+            content: row.get(3)?,
+        })
+    }
+}
+
 pub struct Store {
     path: String,
     conn: Connection,
@@ -101,6 +121,7 @@ pub enum Name {
     InsertDo,
     InsertProject,
     InsertNotification,
+    InsertCal,
     UpdateTaskEnd,
     SelectCurrentTask,
     SelectCurrentTaskFor,
@@ -108,7 +129,9 @@ pub enum Name {
     SelectEndingTask,
     SelectProjectInfo,
     SelectProject,
+    SelectProjectDetail,
     SelectUser,
+    SelectCal,
 }
 
 fn sql(name: Name) -> &'static str {
@@ -116,14 +139,17 @@ fn sql(name: Name) -> &'static str {
         Name::InsertDo => include_str!("sql/insert_do.sql"),
         Name::InsertProject => include_str!("sql/insert_project.sql"),
         Name::InsertNotification => include_str!("sql/insert_notification.sql"),
+        Name::InsertCal => include_str!("sql/insert_cal.sql"),
         Name::SelectCurrentTask => include_str!("sql/select_current_task.sql"),
         Name::SelectCurrentTaskFor => include_str!("sql/select_current_task_for.sql"),
         Name::SelectLatestTaskFor => include_str!("sql/select_latest_task_for.sql"),
         Name::SelectEndingTask => include_str!("sql/select_ending_task.sql"),
         Name::UpdateTaskEnd => include_str!("sql/update_task_end.sql"),
         Name::SelectProject => include_str!("sql/select_project.sql"),
+        Name::SelectProjectDetail => include_str!("sql/select_project_detail.sql"),
         Name::SelectProjectInfo => include_str!("sql/select_project_info.sql"),
         Name::SelectUser => include_str!("sql/select_user.sql"),
+        Name::SelectCal => include_str!("sql/select_cal.sql"),
     }
 }
 
@@ -139,7 +165,8 @@ impl Store {
                     .expect("failed creating table project");
                 conn.execute(include_str!("sql/create_notification.sql"), NO_PARAMS)
                     .expect("failed creating table notification");
-                println!("{}", path.display());
+                conn.execute(include_str!("sql/create_cal.sql"), NO_PARAMS)
+                    .expect("failed creating table cal");
                 Ok(Store {
                     conn,
                     path: path.to_string_lossy().into(),
@@ -238,6 +265,21 @@ impl Store {
         )
     }
 
+    pub fn insert_cal(&mut self, content: String) -> Result<String, StoreError> {
+        let uuid = Uuid::new_v4().to_simple().to_string();
+        match self.exec(
+            Name::InsertCal,
+            named_params! {
+                ":uuid": uuid,
+                ":ts":  ts(&time::SystemTime::now()),
+                ":content":  content,
+            },
+        ) {
+            Err(e) => Err(e),
+            Ok(_) => Ok(uuid),
+        }
+    }
+
     pub fn select_current_task(&self) -> Result<Vec<TaskRecord>, StoreError> {
         let now = time::SystemTime::now();
         self.map_rows(
@@ -291,6 +333,16 @@ impl Store {
         )
     }
 
+    pub fn select_project_detail(&self, project: String) -> Result<Vec<TaskRecord>, StoreError> {
+        self.map_rows(
+            Name::SelectProjectDetail,
+            named_params! {
+                ":project": project.clone(),
+            },
+            TaskRecord::from_row,
+        )
+    }
+
     pub fn select_user(
         &self,
         user: String,
@@ -324,5 +376,19 @@ impl Store {
             },
             TaskRecord::from_row,
         )
+    }
+
+    pub fn select_cal(&self, uuid: String) -> Result<CalRecord, StoreError> {
+        self.map_rows(
+            Name::SelectCal,
+            named_params! {
+                ":uuid": uuid,
+            },
+            CalRecord::from_row,
+        )
+        .and_then(|cals| match cals.first() {
+            Some(c) => Ok(c.clone()),
+            None => Err(StoreError::Iter),
+        })
     }
 }

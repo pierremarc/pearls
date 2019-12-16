@@ -1,13 +1,44 @@
 use crate::chrono::Datelike;
-use chrono::{DateTime, Duration, Local, TimeZone};
+use chrono::{DateTime, Duration, Local, TimeZone, Weekday};
 
 pub type LocalTime = DateTime<Local>;
 
+#[derive(Clone, Copy)]
 pub enum CalRange {
     Day(LocalTime),
     Week(LocalTime),
     Month(LocalTime),
     Year(LocalTime),
+}
+
+pub fn day_of_week(lt: &LocalTime) -> &'static str {
+    match lt.weekday() {
+        Weekday::Mon => "Monday",
+        Weekday::Tue => "Tuesday",
+        Weekday::Wed => "Wednesday",
+        Weekday::Thu => "Thursday",
+        Weekday::Fri => "Friday",
+        Weekday::Sat => "Saturday",
+        Weekday::Sun => "Sunday",
+    }
+}
+
+pub fn month_name(lt: &LocalTime) -> &'static str {
+    match lt.month() {
+        1 => "January",
+        2 => "February",
+        3 => "March",
+        4 => "April",
+        5 => "May",
+        6 => "June",
+        7 => "July",
+        8 => "August",
+        9 => "September",
+        10 => "October",
+        11 => "November",
+        12 => "December",
+        _ => "Something else...",
+    }
 }
 
 pub fn day(year: i32, month: u32, day: u32) -> CalRange {
@@ -25,11 +56,11 @@ pub fn week(year: i32, month: u32, day: u32) -> CalRange {
 }
 
 pub fn month(year: i32, month: u32) -> CalRange {
-    CalRange::Month(Local.ymd(year, month, 0).and_hms(0, 0, 0))
+    CalRange::Month(Local.ymd(year, month, 1).and_hms(0, 0, 0))
 }
 
 pub fn year(year: i32) -> CalRange {
-    CalRange::Year(Local.ymd(year, 0, 0).and_hms(0, 0, 0))
+    CalRange::Year(Local.ymd(year, 1, 1).and_hms(0, 0, 0))
 }
 
 type Interval = (LocalTime, LocalTime);
@@ -38,7 +69,7 @@ fn find_end_of_month(start: LocalTime) -> LocalTime {
     let starting_month = start.month();
     for i in 1..32 {
         let attempt = start + Duration::days(i);
-        if attempt.month() > starting_month {
+        if attempt.month() != starting_month {
             return attempt;
         }
     }
@@ -59,6 +90,18 @@ impl CalRange {
             CalRange::Week(start) => (start, start + Duration::weeks(1)),
             CalRange::Month(start) => (start, find_end_of_month(start)),
             CalRange::Year(start) => (start, start + Duration::days(365)),
+        }
+    }
+
+    pub fn next(self) -> CalRange {
+        match self {
+            CalRange::Day(start) => CalRange::Day(start + Duration::days(1)),
+            CalRange::Week(start) => CalRange::Week(start + Duration::weeks(1)),
+            CalRange::Month(start) => {
+                let next = find_end_of_month(start);
+                month(next.year(), next.month())
+            }
+            CalRange::Year(start) => year(start.year() + 1),
         }
     }
 
@@ -102,7 +145,7 @@ pub struct CalRangeIterator {
 impl Iterator for CalRangeIterator {
     type Item = Interval;
     fn next(&mut self) -> Option<Interval> {
-        if self.start > self.end {
+        if self.start >= self.end {
             return None;
         }
         let end = (self.step)(self.start);

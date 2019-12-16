@@ -45,6 +45,7 @@ pub struct CommandHandler {
     chan: Sender<String>,
     pub store: Store,
     pub room_id: String,
+    pub host: String,
     last_message_id: String,
 }
 
@@ -68,6 +69,7 @@ impl CommandHandler {
                     Command::Project(project) => make::project(self, project),
                     Command::Since(since) => make::since(self, u, since),
                     Command::Switch(project, task) => make::switch(self, u, project, task),
+                    Command::Cal(project) => make::cal(self, project),
                 }
             }
             Err(err) => {
@@ -138,18 +140,21 @@ pub fn start_bot(
     room_id: &str,
     user: &str,
     password: &str,
+    http_host: &str,
 ) -> Receiver<String> {
     let (s, r) = unbounded::<String>();
     let h = String::from(homeserver);
     let u = String::from(user);
     let p = String::from(password);
     let rid = String::from(room_id);
+    let host = String::from(http_host);
     match Store::new(path.clone()) {
         Ok(store) => {
             thread::spawn(move || {
                 let bot = MatrixBot::new(CommandHandler {
                     chan: s,
                     room_id: rid,
+                    host,
                     last_message_id: String::new(),
                     store,
                 });

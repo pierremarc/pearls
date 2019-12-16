@@ -16,3 +16,5 @@ crossbeam-channel = "0.4"
 matrix_bot_api = { path = "../matrix_bot_api" }
 shell = { path = "../shell" }
 html = {path = "../html"}
+tower-web = "0.3.7"
+tokio = "0.2.4"

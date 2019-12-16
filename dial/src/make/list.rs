@@ -1,5 +1,5 @@
 use crate::bot;
-use shell::util::human_duration;
+use shell::util::{display_username, human_duration};
 use std::time;
 
 pub fn list(handler: &mut bot::CommandHandler) -> Option<(String, String)> {
@@ -11,14 +11,17 @@ pub fn list(handler: &mut bot::CommandHandler) -> Option<(String, String)> {
                 .map(|rec| match rec.end_time.duration_since(now) {
                     Ok(duration) => format!(
                         "{} is {}ing on {}, they will be done in {}",
-                        rec.username,
+                        display_username(&rec.username),
                         rec.task,
                         rec.project,
                         human_duration(duration)
                     ),
                     Err(err) => format!(
                         "{} is {}ing on {}, they will be done in {}",
-                        rec.username, rec.task, rec.project, err
+                        display_username(&rec.username),
+                        rec.task,
+                        rec.project,
+                        err
                     ),
                 })
                 .collect::<Vec<String>>()

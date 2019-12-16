@@ -22,6 +22,7 @@ pub enum Command {
     More(time::Duration),
     List,
     Project(String),
+    Cal(String),
     Since(time::SystemTime),
 }
 
@@ -174,6 +175,14 @@ fn project() -> CommandParser {
         .name("project")
 }
 
+fn cal() -> CommandParser {
+    let cn = seq(b"!cal") - space();
+    let id = ident();
+    let all = cn + id;
+    all.map(|(_, project_name)| Command::Cal(project_name))
+        .name("project")
+}
+
 fn start() -> CommandParser {
     let cn = seq(b"!do") - space();
     let id = ident() - space();
@@ -240,6 +249,7 @@ fn command() -> CommandParser {
             | since()
             | more()
             | switch()
+            | cal()
     }
     .name("command")
         - trailing_space()

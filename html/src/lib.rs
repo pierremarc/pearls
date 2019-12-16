@@ -43,6 +43,16 @@ pub struct Element {
     pub tag: &'static str,
     pub attrs: Attributes,
     pub children: Vec<Node>,
+    empty: bool,
+}
+
+// https://developer.mozilla.org/en-US/docs/Glossary/empty_element
+fn is_empty(tag: &'static str) -> bool {
+    match tag {
+        "area" | "base" | "br" | "col" | "embed" | "hr" | "img" | "input" | "link" | "meta"
+        | "param" | "source" | "track" | "wbr" => true,
+        _ => false,
+    }
 }
 
 impl Element {
@@ -51,6 +61,7 @@ impl Element {
             tag,
             attrs: Attributes::new(),
             children: Vec::new(),
+            empty: is_empty(tag),
         }
     }
 
@@ -64,16 +75,21 @@ impl Element {
             tag: self.tag,
             attrs: new_attrs,
             children: self.children.clone(),
+            empty: self.empty,
         }
     }
 
     pub fn append_node(self, node: Node) -> Element {
+        if self.empty {
+            return self;
+        }
         let mut new_children = self.children.clone();
         new_children.push(node);
         Element {
             tag: self.tag,
             attrs: self.attrs.clone(),
             children: new_children,
+            empty: self.empty,
         }
     }
 
@@ -102,7 +118,11 @@ impl Element {
                 .join("\n");
             format!("<{}{}>{}</{}>", tag, attrs_as_string(&self.attrs), cs, tag)
         } else {
-            format!("<{}{}></{}>", tag, attrs_as_string(&self.attrs), tag)
+            if self.empty {
+                format!("<{}{}>", tag, attrs_as_string(&self.attrs))
+            } else {
+                format!("<{}{}></{}>", tag, attrs_as_string(&self.attrs), tag)
+            }
         }
     }
 }
@@ -167,6 +187,7 @@ where
                 tag,
                 attrs: Attributes::new(),
                 children: ns.clone(),
+                empty: is_empty(tag),
             }
         }
     }
@@ -231,6 +252,38 @@ where
     C: Into<Children>,
 {
     element("code", c)
+}
+
+pub fn h1<C>(c: C) -> Element
+where
+    C: Into<Children>,
+{
+    element("h1", c)
+}
+
+pub fn h2<C>(c: C) -> Element
+where
+    C: Into<Children>,
+{
+    element("h2", c)
+}
+
+pub fn style<C>(c: C) -> Element
+where
+    C: Into<Children>,
+{
+    element("style", c)
+}
+
+pub fn anchor<C>(c: C) -> Element
+where
+    C: Into<Children>,
+{
+    element("a", c)
+}
+
+pub fn with_doctype(e: Element) -> String {
+    format!("<!DOCTYPE html>\n{}", e.as_string())
 }
 
 #[cfg(test)]

@@ -22,6 +22,7 @@ pub fn done(
         )),
         None => {
             let given_start = now - duration;
+            println!("given_start {:?} ", given_start);
             let start = handler
                 .store
                 .select_latest_task_for(user.clone())
@@ -31,7 +32,10 @@ pub fn done(
                         .map(|rec| rec.start_time)
                         .unwrap_or(given_start)
                         .clone();
-                    i
+                    match i < given_start {
+                        true => given_start,
+                        false => i,
+                    }
                 })
                 .unwrap_or(given_start);
 

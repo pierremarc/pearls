@@ -73,3 +73,12 @@ pub fn split(a: Vec<(String, String)>) -> (Vec<String>, Vec<String>) {
     let output1 = a.iter().map(|(_, s)| s.clone()).collect();
     (output0, output1)
 }
+
+pub fn display_username<S>(username: S) -> String
+where
+    S: Into<String>,
+{
+    let u: String = username.into();
+    let prefix: Vec<&str> = u.split(":").collect();
+    prefix.first().map(|s| String::from(*s)).unwrap_or(u)
+}
