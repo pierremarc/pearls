@@ -82,3 +82,28 @@ where
     let prefix: Vec<&str> = u.split(":").collect();
     prefix.first().map(|s| String::from(*s)).unwrap_or(u)
 }
+
+pub struct AfterOnce(bool);
+
+impl AfterOnce {
+    pub fn new() -> AfterOnce {
+        AfterOnce(false)
+    }
+
+    pub fn map<F0, F1, A, R>(&mut self, a: A, init: F0, after: F1) -> R
+    where
+        F0: Fn(A) -> R,
+        F1: Fn(A) -> R,
+    {
+        if self.0 {
+            after(a)
+        } else {
+            self.0 = true;
+            init(a)
+        }
+    }
+}
+
+pub fn after_once() -> AfterOnce {
+    AfterOnce::new()
+}

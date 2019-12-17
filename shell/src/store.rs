@@ -7,7 +7,7 @@ use std::path::Path;
 use std::time;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct TaskRecord {
     pub id: i64,
     pub username: String,

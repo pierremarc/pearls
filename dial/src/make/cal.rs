@@ -1,127 +1,96 @@
 use crate::bot;
 use chrono::Datelike;
-use html::{anchor, body, div, h1, h2, head, html, span, style, with_doctype, Element};
-use shell::cal::{day_of_week, month, month_name, week};
+use html::{anchor, body, div, h1, head, html, span, style, with_doctype, Element, Empty};
+use shell::cal::{day_of_week, Calendar, CalendarItem, LocalTime};
 use shell::store::TaskRecord;
-use shell::util::{date_time_from_st, display_username, human_duration, st_from_date_time};
+use shell::util::{after_once, date_time_from_st, display_username, human_duration};
 use std::time;
 
-fn find_items(
-    recs: &Vec<TaskRecord>,
-    start: time::SystemTime,
-    end: time::SystemTime,
-) -> Vec<&TaskRecord> {
-    recs.iter()
-        .filter(|rec| {
-            (start < rec.start_time && rec.start_time < end)
-                || (start < rec.end_time && rec.end_time < end)
-                || (start < rec.start_time && rec.end_time < end)
+fn format_tasklist(tasks: impl Iterator<Item = TaskRecord>) -> Vec<Element> {
+    tasks
+        .map(|rec| {
+            div(vec![
+                div(format!("{}({})", display_username(&rec.username), rec.task)),
+                div(format!(
+                    "{}",
+                    human_duration(
+                        rec.end_time
+                            .duration_since(rec.start_time)
+                            .unwrap_or(time::Duration::from_secs(0))
+                    )
+                )),
+            ])
+            .set("class", "task")
         })
         .collect()
 }
 
+fn make_day(day: &LocalTime, tasks: impl Iterator<Item = TaskRecord>, class: &str) -> Element {
+    div(vec![
+        div(format!("{} {}", day_of_week(&day), day.day())).set("class", "weekday"),
+        div(format_tasklist(tasks)).set("class", "task-list"),
+    ])
+    .set("class", &format!("day {}", class))
+}
+
 fn cal_project(recs: &Vec<TaskRecord>) -> Element {
-    let (start_time, end_time) = recs.iter().fold(
-        (time::SystemTime::now(), time::UNIX_EPOCH),
-        |(s, e), rec| {
-            let new_start = {
-                if rec.start_time < s {
-                    rec.start_time.clone()
-                } else {
-                    s
-                }
-            };
-            let new_end = {
-                if rec.end_time > e {
-                    rec.end_time.clone()
-                } else {
-                    e
-                }
-            };
-            (new_start, new_end)
-        },
-    );
-    let end = date_time_from_st(&end_time);
-    let start = date_time_from_st(&start_time);
-    let mut current_week = week(start.year(), start.month(), start.day());
-    let mut current_month = month(start.year(), start.month());
-    let mut all_weeks: Vec<Element> = Vec::new();
-
-    let (mut start_month, mut end_month) = current_month.interval();
-    while start_month < end {
-        println!("Month {}", start_month.month());
-        all_weeks.push(
-            h2(format!(
-                "{} {}",
-                month_name(&start_month),
-                start_month.year()
-            ))
-            .set("class", "month-date"),
+    let mut cal: Calendar<TaskRecord> = Calendar::new();
+    for t in recs.into_iter() {
+        cal.push(
+            date_time_from_st(&t.start_time),
+            date_time_from_st(&t.end_time),
+            t.clone(),
         );
-
-        let weeks: Vec<Element> = current_month
-            .iter()
-            .map(|(_, _)| {
-                let (mut start_week, _) = current_week.interval();
-                let mut all_days: Vec<Element> = Vec::new();
-
-                while start_week < end_month {
-                    println!("Week {}", start_week.iso_week().week());
-                    let days: Vec<Element> = current_week
-                        .iter()
-                        .map(|(s, e)| {
-                            let items: Vec<Element> =
-                                find_items(recs, st_from_date_time(&s), st_from_date_time(&e))
-                                    .iter()
-                                    .map(|rec| {
-                                        div(vec![
-                                            div(format!("{}", display_username(&rec.username))),
-                                            div(format!("{}({})", rec.project, rec.task)),
-                                            div(format!(
-                                                "{}",
-                                                human_duration(
-                                                    rec.end_time
-                                                        .duration_since(rec.start_time)
-                                                        .unwrap_or(time::Duration::from_secs(0))
-                                                )
-                                            )),
-                                        ])
-                                        .set("class", "task")
-                                    })
-                                    .collect();
-                            div(vec![
-                                div(format!("{} {}", String::from(day_of_week(&s)), s.day()))
-                                    .set("class", "weekday"),
-                                div(items).set("class", "task-list"),
-                            ])
-                            .set("class", "day")
-                        })
-                        .collect();
-                    all_days.push(div(days).set("class", "week"));
-
-                    current_week = current_week.next();
-                    let (new_start_week, _) = current_week.interval();
-                    start_week = new_start_week;
-                }
-
-                if all_days.len() > 0 {
-                    div(all_days).set("class", "month")
-                } else {
-                    div(String::new())
-                        .set("style", "display:none;")
-                        .set("class", "empty")
-                }
-            })
-            .collect();
-
-        all_weeks.extend(weeks.into_iter());
-        current_month = current_month.next();
-        let (new_start_month, new_end_month) = current_month.interval();
-        start_month = new_start_month;
-        end_month = new_end_month;
     }
 
-    div(all_weeks)
+    let main = div(Empty).set("class", "calendar");
+    let cur_month = div(Empty).set("class", "month");
+    let cur_week = div(Empty).set("class", "week");
+
+    let mut fm = after_once();
+    let mut fw = after_once();
+
+    let (res, b, w) = cal
+        .iter()
+        .fold((main, cur_month, cur_week), |(b, m, w), item| match item {
+            CalendarItem::Month(_d) => fm.map(
+                (b, m, w),
+                |acc| acc,
+                |(b, m, _)| {
+                    (
+                        b.append(m),
+                        div(Empty).set("class", "month"),
+                        div(Empty).set("class", "week"),
+                    )
+                },
+            ),
+            CalendarItem::Week(_d) => fw.map(
+                (b, m, w),
+                |acc| acc,
+                |(b, m, w)| (b, m.append(w), div(Empty).set("class", "week")),
+            ),
+            CalendarItem::EmptyDay(d, events) => (
+                b,
+                m,
+                w.append(make_day(
+                    &d,
+                    events.iter().map(|e| e.data.clone()),
+                    "out-month",
+                )),
+            ),
+            CalendarItem::Day(d, events) => (
+                b,
+                m,
+                w.append(make_day(
+                    &d,
+                    events.iter().map(|e| e.data.clone()),
+                    "in-month",
+                )),
+            ),
+            _ => (b, m, w),
+        });
+
+    res.append(b.append(w))
 }
 
 pub fn cal(handler: &mut bot::CommandHandler, project: String) -> Option<(String, String)> {

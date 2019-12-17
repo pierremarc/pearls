@@ -20,6 +20,10 @@ body{
     flex-basis: 0;
 }
 
+.in-month .weekday {
+    font-weight: bold;
+}
+
 .weekday {
     border-bottom: 1px solid grey;
     border-top: 1px solid grey;
