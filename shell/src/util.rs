@@ -107,3 +107,10 @@ impl AfterOnce {
 pub fn after_once() -> AfterOnce {
     AfterOnce::new()
 }
+
+pub fn string<S>(s: S) -> String
+where
+    S: Into<String>,
+{
+    s.into()
+}

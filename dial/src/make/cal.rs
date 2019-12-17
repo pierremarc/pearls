@@ -3,7 +3,7 @@ use chrono::Datelike;
 use html::{anchor, body, div, h1, head, html, span, style, with_doctype, Element, Empty};
 use shell::cal::{day_of_week, Calendar, CalendarItem, LocalTime};
 use shell::store::TaskRecord;
-use shell::util::{after_once, date_time_from_st, display_username, human_duration};
+use shell::util::{after_once, date_time_from_st, display_username, dur, human_duration, string};
 use std::time;
 
 fn format_tasklist(tasks: impl Iterator<Item = TaskRecord>) -> Vec<Element> {
@@ -94,12 +94,41 @@ fn cal_project(recs: &Vec<TaskRecord>) -> Element {
 }
 
 pub fn cal(handler: &mut bot::CommandHandler, project: String) -> Option<(String, String)> {
+    let available = handler
+        .store
+        .select_project_info(project.clone())
+        .unwrap_or(Vec::new())
+        .first()
+        .map(|rec| dur(&rec.duration) / (1000 * 60 * 60))
+        .unwrap_or(0);
+
     match handler.store.select_project_detail(project.clone()) {
         Ok(ref recs) => {
+            let done = recs.iter().fold(0, |acc, rec| {
+                acc + dur(&rec
+                    .end_time
+                    .duration_since(rec.start_time)
+                    .unwrap_or(time::Duration::from_secs(0)))
+            }) / (1000 * 60 * 60);
+
             let cal_element = cal_project(recs);
             let title = h1(project);
+            let subtitle = div(vec![
+                div(vec![
+                    span(string("Done: ")),
+                    span(format!("{} hours", done)),
+                ]),
+                div(vec![
+                    span(string("Avail: ")),
+                    span(format!("{} hours", available)),
+                ]),
+            ])
+            .set("class", "summary");
             let css = style(String::from(include_str!("cal.css"))).set("type", "text/css");
-            let html_string = with_doctype(html(vec![head(css), body(vec![title, cal_element])]));
+            let html_string = with_doctype(html(vec![
+                head(css),
+                body(vec![title, subtitle, cal_element]),
+            ]));
             match handler.store.insert_cal(html_string) {
                 Ok(uuid) => Some((
                     format!("can be seen at http://{}/cal/{}", handler.host, uuid),

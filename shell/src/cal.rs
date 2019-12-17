@@ -263,7 +263,6 @@ where
 }
 
 enum CalendarIteratorStep {
-    // Start,
     Year,
     Month,
     Week,
@@ -297,9 +296,9 @@ impl<'c, T> CalendarIterator<'c, T>
 where
     T: Clone,
 {
-    fn start(&mut self) -> LocalTime {
-        self.calendar.start_time()
-    }
+    // fn start(&mut self) -> LocalTime {
+    //     self.calendar.start_time()
+    // }
     fn end(&mut self) -> LocalTime {
         self.calendar.end_time()
     }
@@ -312,10 +311,6 @@ where
     type Item = CalendarItem<T>;
     fn next(&mut self) -> Option<Self::Item> {
         match self.step {
-            // CalendarIteratorStep::Start => {
-            //     self.step = CalendarIteratorStep::Month;
-            //     Some(CalendarItem::Year(self.cur_year.interval().0))
-            // }
             CalendarIteratorStep::Year => {
                 let (start, _) = self.cur_year.interval();
                 if start > self.end() {
