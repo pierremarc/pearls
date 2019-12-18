@@ -327,7 +327,7 @@ impl Store {
         self.map_rows(
             Name::SelectProject,
             named_params! {
-                ":project": project.clone(),
+                ":project": format!("%{}%", project),
             },
             AggregatedTaskRecord::from_row,
         )
@@ -337,7 +337,7 @@ impl Store {
         self.map_rows(
             Name::SelectProjectDetail,
             named_params! {
-                ":project": project.clone(),
+                ":project": format!("%{}%", project),
             },
             TaskRecord::from_row,
         )

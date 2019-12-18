@@ -448,7 +448,7 @@ mod tests {
                     let u = es.first().map(|e| e.data).unwrap_or(0);
                     println!("{} {} \t({})", day_of_week(&d), d.day(), u);
                 }
-                CalendarItem::EmptyDay(d) => {
+                CalendarItem::EmptyDay(d, _) => {
                     println!("[{} {}]", day_of_week(&d), d.day());
                 }
             }
