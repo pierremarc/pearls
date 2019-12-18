@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::convert::{From, Into};
 use std::fmt;
+use std::ops::Add;
 
 #[derive(Clone)]
 pub enum Node {
@@ -124,6 +125,14 @@ impl Element {
                 format!("<{}{}></{}>", tag, attrs_as_string(&self.attrs), tag)
             }
         }
+    }
+}
+
+impl Add for Element {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        self.append(other)
     }
 }
 

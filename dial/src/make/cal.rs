@@ -58,7 +58,7 @@ fn cal_project(recs: &Vec<TaskRecord>) -> Element {
                 |acc| acc,
                 |(b, m, _)| {
                     (
-                        b.append(m),
+                        b + m,
                         div(Empty).set("class", "month"),
                         div(Empty).set("class", "week"),
                     )
@@ -67,30 +67,22 @@ fn cal_project(recs: &Vec<TaskRecord>) -> Element {
             CalendarItem::Week(_d) => fw.map(
                 (b, m, w),
                 |acc| acc,
-                |(b, m, w)| (b, m.append(w), div(Empty).set("class", "week")),
+                |(b, m, w)| (b, m + w, div(Empty).set("class", "week")),
             ),
             CalendarItem::EmptyDay(d, events) => (
                 b,
                 m,
-                w.append(make_day(
-                    &d,
-                    events.iter().map(|e| e.data.clone()),
-                    "out-month",
-                )),
+                w + make_day(&d, events.iter().map(|e| e.data.clone()), "out-month"),
             ),
             CalendarItem::Day(d, events) => (
                 b,
                 m,
-                w.append(make_day(
-                    &d,
-                    events.iter().map(|e| e.data.clone()),
-                    "in-month",
-                )),
+                w + make_day(&d, events.iter().map(|e| e.data.clone()), "in-month"),
             ),
             _ => (b, m, w),
         });
 
-    res.append(b.append(w))
+    res + (b + w)
 }
 
 pub fn cal(handler: &mut bot::CommandHandler, project: String) -> Option<(String, String)> {
