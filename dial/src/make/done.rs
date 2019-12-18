@@ -29,7 +29,7 @@ pub fn done(
                 .map(|res| {
                     let i = res
                         .first()
-                        .map(|rec| rec.start_time)
+                        .map(|rec| rec.end_time)
                         .unwrap_or(given_start)
                         .clone();
                     match i < given_start {
