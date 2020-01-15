@@ -1,6 +1,7 @@
 use crate::bot;
-use html::{code, div, table, Element};
+use html::{code, div, h2, table, Element};
 use shell::util::{display_username, dur, human_duration, make_table_row};
+use std::collections::HashSet;
 use std::time;
 
 pub fn project(handler: &mut bot::CommandHandler, project: String) -> Option<(String, String)> {
@@ -11,6 +12,16 @@ pub fn project(handler: &mut bot::CommandHandler, project: String) -> Option<(St
 
     match handler.store.select_project(project.clone()) {
         Ok(ref recs) => {
+            let names = recs
+                .iter()
+                .fold(HashSet::<String>::new(), |mut acc, rec| {
+                    acc.insert(rec.project.clone());
+                    acc
+                })
+                .into_iter()
+                .collect::<Vec<String>>()
+                .join(", ");
+
             let left: Vec<String> = recs
                 .into_iter()
                 .map(|rec| {
@@ -60,8 +71,8 @@ pub fn project(handler: &mut bot::CommandHandler, project: String) -> Option<(St
                 })
                 .unwrap_or((format!("{} done", done), code(format!("done: {}", done))));
             Some((
-                h0 + &left.join("\n"),
-                div(vec![h1, table(right)]).as_string(),
+                format!("{}\n{}\n{}", names, h0, left.join("\n")),
+                div(vec![h2(names), h1, table(right)]).as_string(),
             ))
         }
         Err(_) => None,

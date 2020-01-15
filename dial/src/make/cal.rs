@@ -4,6 +4,7 @@ use html::{anchor, body, div, h1, head, html, span, style, with_doctype, Element
 use shell::cal::{day_of_week, Calendar, CalendarItem, LocalTime};
 use shell::store::TaskRecord;
 use shell::util::{after_once, date_time_from_st, display_username, dur, human_duration, string};
+use std::collections::HashSet;
 use std::time;
 
 fn format_tasklist(tasks: impl Iterator<Item = TaskRecord>) -> Vec<Element> {
@@ -96,6 +97,16 @@ pub fn cal(handler: &mut bot::CommandHandler, project: String) -> Option<(String
 
     match handler.store.select_project_detail(project.clone()) {
         Ok(ref recs) => {
+            let names = recs
+                .iter()
+                .fold(HashSet::<String>::new(), |mut acc, rec| {
+                    acc.insert(rec.project.clone());
+                    acc
+                })
+                .into_iter()
+                .collect::<Vec<String>>()
+                .join(", ");
+
             let done = recs.iter().fold(0, |acc, rec| {
                 acc + dur(&rec
                     .end_time
@@ -104,7 +115,7 @@ pub fn cal(handler: &mut bot::CommandHandler, project: String) -> Option<(String
             }) / (1000 * 60 * 60);
 
             let cal_element = cal_project(recs);
-            let title = h1(project);
+            let title = h1(names);
             let subtitle = div(vec![
                 div(vec![
                     span(string("Done: ")),
