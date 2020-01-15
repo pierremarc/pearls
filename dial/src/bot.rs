@@ -103,10 +103,10 @@ impl MessageHandler for CommandHandler {
         let user = message.sender.clone();
         let body = message.body.clone();
         if message.room != self.room_id {
-            // println!(
-            //     "Got a message({}) from {} in room {}:\n\t'{}'",
-            //     message.id, user, message.room, body
-            // );
+            println!(
+                "Got a message({}) from {} in room {}:\n\t'{}'",
+                message.id, user, message.room, body
+            );
             return HandleResult::StopHandling;
         }
         if message.id == self.last_message_id {

@@ -24,6 +24,12 @@ impl From<Element> for Node {
     }
 }
 
+impl From<&Element> for Node {
+    fn from(e: &Element) -> Node {
+        Node::HTML(e.clone())
+    }
+}
+
 impl From<String> for Node {
     fn from(s: String) -> Node {
         Node::Text(s)
@@ -66,9 +72,10 @@ impl Element {
         }
     }
 
-    pub fn set<S>(self, key: S, val: S) -> Element
+    pub fn set<K, V>(self, key: K, val: V) -> Element
     where
-        S: Into<String>,
+        K: Into<String>,
+        V: Into<String>,
     {
         let mut new_attrs = self.attrs.clone();
         new_attrs.insert(key.into(), val.into());
@@ -78,6 +85,13 @@ impl Element {
             children: self.children.clone(),
             empty: self.empty,
         }
+    }
+
+    pub fn class<S>(self, val: S) -> Element
+    where
+        S: Into<String>,
+    {
+        self.set("class", val)
     }
 
     pub fn append_node(self, node: Node) -> Element {
@@ -172,9 +186,53 @@ impl From<Vec<Element>> for Children {
     }
 }
 
+impl From<[Element; 2]> for Children {
+    fn from(es: [Element; 2]) -> Children {
+        Children::Many(es.into_iter().map(|e| e.into()).collect())
+    }
+}
+
+impl From<[Element; 3]> for Children {
+    fn from(es: [Element; 3]) -> Children {
+        Children::Many(es.into_iter().map(|e| e.into()).collect())
+    }
+}
+
+impl From<[Element; 4]> for Children {
+    fn from(es: [Element; 4]) -> Children {
+        Children::Many(es.into_iter().map(|e| e.into()).collect())
+    }
+}
+
+impl From<[Element; 5]> for Children {
+    fn from(es: [Element; 5]) -> Children {
+        Children::Many(es.into_iter().map(|e| e.into()).collect())
+    }
+}
+
+impl From<[Element; 6]> for Children {
+    fn from(es: [Element; 6]) -> Children {
+        Children::Many(es.into_iter().map(|e| e.into()).collect())
+    }
+}
+
+// From<[Element; N]> ... add as you need it, keep it sorted
+
 impl From<String> for Children {
     fn from(s: String) -> Children {
         Children::One(Node::Text(s))
+    }
+}
+
+impl From<&String> for Children {
+    fn from(s: &String) -> Children {
+        Children::One(Node::Text(s.clone()))
+    }
+}
+
+impl From<&str> for Children {
+    fn from(s: &str) -> Children {
+        Children::One(Node::Text(String::from(s)))
     }
 }
 
@@ -186,19 +244,12 @@ where
     match children {
         Children::Empty => Element::new(tag),
         Children::One(n) => Element::new(tag).append_node(n),
-        Children::Many(ns) => {
-            // let mut e = Element::new(tag);
-            // for n in ns.into_iter() {
-            //     e = e.append_node(n);
-            // }
-            // e
-            Element {
-                tag,
-                attrs: Attributes::new(),
-                children: ns.clone(),
-                empty: is_empty(tag),
-            }
-        }
+        Children::Many(ns) => Element {
+            tag,
+            attrs: Attributes::new(),
+            children: ns.clone(),
+            empty: is_empty(tag),
+        },
     }
 }
 
@@ -208,12 +259,21 @@ where
 {
     element("html", c)
 }
+
 pub fn head<C>(c: C) -> Element
 where
     C: Into<Children>,
 {
     element("head", c)
 }
+
+pub fn meta<C>(c: C) -> Element
+where
+    C: Into<Children>,
+{
+    element("meta", c)
+}
+
 pub fn body<C>(c: C) -> Element
 where
     C: Into<Children>,
@@ -297,7 +357,7 @@ pub fn with_doctype(e: Element) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
+    use super::*;
     #[test]
     fn create_element_with_attrs() {
         let e = div(Empty).set("foo", "bar");

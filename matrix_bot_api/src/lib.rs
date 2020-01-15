@@ -198,12 +198,12 @@ impl MatrixBot {
 
     fn handle_rooms(&self, rooms: Vec<Room>) {
         for rr in rooms {
-            // println!(
-            //     "handle_room {} {} {}",
-            //     rr.id,
-            //     rr.membership.is_joined(),
-            //     rr.membership.is_invited()
-            // );
+            println!(
+                "handle_room {} {} {}",
+                rr.id,
+                rr.membership.is_joined(),
+                rr.membership.is_invited()
+            );
             if rr.membership.is_invited() && !rr.membership.is_joined() {
                 self.backend
                     .send(BKCommand::JoinRoom(rr.id.clone()))

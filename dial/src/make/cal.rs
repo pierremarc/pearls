@@ -1,7 +1,7 @@
 use crate::bot;
 use chrono::Datelike;
 use html::{anchor, body, div, h1, head, html, span, style, with_doctype, Element, Empty};
-use shell::cal::{day_of_week, Calendar, CalendarItem, LocalTime};
+use shell::cal::{day_of_week, month_name, Calendar, CalendarItem, LocalTime};
 use shell::store::TaskRecord;
 use shell::util::{after_once, date_time_from_st, display_username, dur, human_duration, string};
 use std::collections::HashSet;
@@ -45,8 +45,8 @@ fn cal_project(recs: &Vec<TaskRecord>) -> Element {
     }
 
     let main = div(Empty).set("class", "calendar");
-    let cur_month = div(Empty).set("class", "month");
-    let cur_week = div(Empty).set("class", "week");
+    let cur_month = div(Empty).set("class", "month initial");
+    let cur_week = div(Empty).set("class", "week initial");
 
     let mut fm = after_once();
     let mut fw = after_once();
@@ -54,14 +54,14 @@ fn cal_project(recs: &Vec<TaskRecord>) -> Element {
     let (res, b, w) = cal
         .iter()
         .fold((main, cur_month, cur_week), |(b, m, w), item| match item {
-            CalendarItem::Month(_d) => fm.map(
+            CalendarItem::Month(d) => fm.map(
                 (b, m, w),
-                |acc| acc,
+                |(b, _, w)| (b, div(h1(month_name(&d))).set("class", "month"), w),
                 |(b, m, _)| {
                     (
                         b + m,
-                        div(Empty).set("class", "month"),
-                        div(Empty).set("class", "week"),
+                        div(h1(month_name(&d))).set("class", "month"),
+                        div(Empty).set("class", "week empty"),
                     )
                 },
             ),
