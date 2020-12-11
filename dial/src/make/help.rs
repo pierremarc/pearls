@@ -9,6 +9,9 @@ pub fn help() -> Option<(String, String)> {
             set a deadline for an existing project
         !provision <project-name> <duration>
             set provisioned time for an existing project
+        !complete <date?> 
+            set completion date for an existing project, if
+            date is not provided, it will take the current time instead.
         !do <project-name> <task-name> <duration>
             start a new task that will last for <duration>
         !done <project-name> <task-name> <duration>
@@ -36,6 +39,9 @@ pub fn help() -> Option<(String, String)> {
             set a deadline for an existing project
         <h4>!provision <em>project-name</em> <em>duration</em></h4>
             set provisioned time for an existing project
+        <h4>!complete <em>date?-name</em></h4>
+            set completion date for an existing project, if
+            date is not provided, it will take the current time instead.
         <h4>!do <em>project-name</em> <em>task-name</em> <em>duration</em></h4>
         start a new task that will last for <em>duration</em>.
         <h4>!done <em>project-name</em> <em>task-name</em> <em>duration</em></h4>

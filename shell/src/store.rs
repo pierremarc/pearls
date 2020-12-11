@@ -62,6 +62,7 @@ pub struct ProjectRecord {
     // pub duration: time::Duration,
     pub end_time: Option<time::SystemTime>,
     pub provision: Option<time::Duration>,
+    pub completed: Option<time::SystemTime>,
 }
 
 impl ProjectRecord {
@@ -73,6 +74,7 @@ impl ProjectRecord {
             start_time: st_from_ts(row.get(3)?),
             end_time: row.get(4).map(st_from_ts).ok(),
             provision: row.get(5).map(dur_from_ts).ok(),
+            completed: row.get(6).map(st_from_ts).ok(),
         })
     }
 }
@@ -125,6 +127,7 @@ pub enum Name {
     InsertProject,
     InsertNotification,
     InsertCal,
+UpdateCompleted,
     UpdateDeadline,
     UpdateProvision,
     UpdateTaskEnd,
@@ -159,6 +162,7 @@ fn sql(name: Name) -> &'static str {
         Name::SelectCal => include_str!("sql/select_cal.sql"),
         Name::UpdateDeadline => include_str!("sql/update_deadline.sql"),
         Name::UpdateProvision => include_str!("sql/update_provision.sql"),
+        Name::UpdateCompleted => include_str!("sql/update_completed.sql"),
     }
 }
 
@@ -288,6 +292,20 @@ impl Store {
             named_params! {
                 ":name": name.clone(),
                 ":end": ts(&end),
+            },
+        )
+    }
+
+    pub fn update_completed(
+        &mut self,
+        name: String,
+        completed: time::SystemTime,
+    ) -> Result<usize, StoreError> {
+        self.exec(
+            Name::UpdateCompleted,
+            named_params! {
+                ":name": name.clone(),
+                ":completed": ts(&completed),
             },
         )
     }

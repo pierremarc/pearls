@@ -24,8 +24,9 @@ pub enum Command {
     Digest(String),
     Cal(String),
     Since(time::SystemTime),
-    ProjectDeadline(String, time::SystemTime),
-    ProjectProvision(String, time::Duration),
+    Deadline(String, time::SystemTime),
+    Provision(String, time::Duration),
+    Complete(String, time::SystemTime),
 }
 
 // #[derive(Debug)]
@@ -243,7 +244,7 @@ fn deadline() -> CommandParser {
     let id = ident() - space();
     let d = date();
     let all = cn + id + d;
-    all.map(|((_, project_name), d)| Command::ProjectDeadline(project_name, d))
+    all.map(|((_, project_name), d)| Command::Deadline(project_name, d))
         .name("deadline")
 }
 
@@ -252,8 +253,26 @@ fn provision() -> CommandParser {
     let id = ident() - space();
     let d = duration();
     let all = cn + id + d;
-    all.map(|((_, project_name), d)| Command::ProjectProvision(project_name, d))
+    all.map(|((_, project_name), d)| Command::Provision(project_name, d))
         .name("provision")
+}
+
+
+fn complete() -> CommandParser {
+    let cn = seq(b"!complete") - space();
+    let id = ident() - space();
+    let d = date();
+    let all = cn + id + d;
+    all.map(|((_, project_name), d)| Command::Complete(project_name, d))
+        .name("complete")
+}
+
+fn complete_now() -> CommandParser {
+    let cn = seq(b"!complete") - space();
+    let id = ident();
+    let all = cn + id;
+    all.map(|(_, project_name)| Command::Complete(project_name, time::SystemTime::now()))
+        .name("complete_now")
 }
 
 fn command() -> CommandParser {
@@ -271,6 +290,8 @@ fn command() -> CommandParser {
             | cal()
             | deadline()
             | provision()
+            | complete()
+            | complete_now()
     }
     .name("command")
         - trailing_space()
