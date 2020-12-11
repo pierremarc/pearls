@@ -13,7 +13,7 @@ fn run_bot(homeserver: &str, room_id: &str, username: &str, password: &str, log:
     let log_path = Path::new(log);
     let rx = bot::start_bot(&log_path, homeserver, room_id, username, password, host);
 
-    http::start_http(&log_path, host);
+    http::start_http(&log_path, host, room_id);
 
     for message in rx.iter() {
         println!("{}", message);

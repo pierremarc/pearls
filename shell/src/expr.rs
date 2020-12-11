@@ -22,7 +22,6 @@ pub enum Command {
     More(time::Duration),
     List,
     Digest(String),
-    Cal(String),
     Since(time::SystemTime),
     Deadline(String, time::SystemTime),
     Provision(String, time::Duration),
@@ -177,14 +176,6 @@ fn digest() -> CommandParser {
         .name("digest")
 }
 
-fn cal() -> CommandParser {
-    let cn = seq(b"!cal") - space();
-    let id = ident();
-    let all = cn + id;
-    all.map(|(_, project_name)| Command::Cal(project_name))
-        .name("cal")
-}
-
 fn start() -> CommandParser {
     let cn = seq(b"!do") - space();
     let id = ident() - space();
@@ -257,7 +248,6 @@ fn provision() -> CommandParser {
         .name("provision")
 }
 
-
 fn complete() -> CommandParser {
     let cn = seq(b"!complete") - space();
     let id = ident() - space();
@@ -287,7 +277,6 @@ fn command() -> CommandParser {
             | since()
             | more()
             | switch()
-            | cal()
             | deadline()
             | provision()
             | complete()

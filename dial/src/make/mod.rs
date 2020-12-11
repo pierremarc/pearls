@@ -1,5 +1,5 @@
-mod cal;
 mod common;
+mod complete;
 mod deadline;
 mod digest;
 mod done;
@@ -12,9 +12,8 @@ mod since;
 mod start;
 mod stop;
 mod switch;
-mod complete;
 
-pub use crate::make::cal::cal;
+pub use crate::make::complete::complete;
 pub use crate::make::deadline::deadline;
 pub use crate::make::digest::digest;
 pub use crate::make::done::done;
@@ -27,4 +26,3 @@ pub use crate::make::since::since;
 pub use crate::make::start::start;
 pub use crate::make::stop::stop;
 pub use crate::make::switch::switch;
-pub use crate::make::complete::complete;

@@ -69,7 +69,6 @@ impl CommandHandler {
                     Command::Digest(project) => make::digest(self, project),
                     Command::Since(since) => make::since(self, u, since),
                     Command::Switch(project, task) => make::switch(self, u, project, task),
-                    Command::Cal(project) => make::cal(self, project),
                     Command::Deadline(project, end) => make::deadline(self, project, end),
                     Command::Provision(project, d) => make::provision(self, project, d),
                     Command::Complete(project, end) => make::complete(self, project, end),

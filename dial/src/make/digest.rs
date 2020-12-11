@@ -1,5 +1,5 @@
 use crate::bot;
-use html::{code, div, h2, table, Element};
+use html::{anchor, code, div, h2, table, Element};
 use shell::util::{display_username, dur, human_duration, make_table_row};
 use std::collections::HashSet;
 use std::time;
@@ -76,9 +76,18 @@ pub fn digest(handler: &mut bot::CommandHandler, project: String) -> Option<(Str
                             )
                         })
                         .unwrap_or((format!("{} done", done), code(format!("done: {}", done))));
+
+                    let cal_url = format!(
+                        "http://{}/{}/calendar/{}",
+                        handler.host, handler.room_id, project
+                    );
+                    let (cal_string, cal_html) = (
+                        format!("calendar: {}", cal_url),
+                        div(anchor("Calendar Link ").set("href", cal_url)),
+                    );
                     Some((
-                        format!("{}\n{}\n{}", names, h0, left.join("\n")),
-                        div(vec![h2(names), h1, table(right)]).as_string(),
+                        format!("{}\n{}\n{}\n{}", names, h0, left.join("\n"), cal_string),
+                        div(vec![h2(names), h1, table(right), cal_html]).as_string(),
                     ))
                 }
                 Err(_) => None,

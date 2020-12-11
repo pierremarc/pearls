@@ -1,11 +1,12 @@
-use crate::bot;
+use crate::{with_store, ArcStore};
 use chrono::Datelike;
-use html::{anchor, body, div, h1, head, html, span, style, with_doctype, Element, Empty};
+use html::{body, div, h1, head, html, span, style, with_doctype, Element, Empty};
 use shell::cal::{day_of_week, month_name, Calendar, CalendarItem, LocalTime};
 use shell::store::TaskRecord;
 use shell::util::{after_once, date_time_from_st, display_username, dur, human_duration, string};
 use std::collections::HashSet;
 use std::time;
+use warp::Filter;
 
 fn format_tasklist(tasks: impl Iterator<Item = TaskRecord>) -> Vec<Element> {
     tasks
@@ -86,16 +87,16 @@ fn cal_project(recs: &Vec<TaskRecord>) -> Element {
     res + (b + w)
 }
 
-pub fn cal(handler: &mut bot::CommandHandler, project: String) -> Option<(String, String)> {
-    let available = handler
-        .store
+fn cal(store: ArcStore, project: String) -> Option<String> {
+    let store = store.lock().expect("oops");
+    let available = store
         .select_project_info(project.clone())
         .unwrap_or(Vec::new())
         .first()
         .map(|rec| rec.provision.map_or(0, |d| dur(&d)) / (1000 * 60 * 60))
         .unwrap_or(0);
 
-    match handler.store.select_project_detail(project.clone()) {
+    match store.select_project_detail(project.clone()) {
         Ok(ref recs) => {
             let names = recs
                 .iter()
@@ -132,18 +133,23 @@ pub fn cal(handler: &mut bot::CommandHandler, project: String) -> Option<(String
                 head(css),
                 body(vec![title, subtitle, cal_element]),
             ]));
-            match handler.store.insert_cal(html_string) {
-                Ok(uuid) => Some((
-                    format!("can be seen at http://{}/cal/{}", handler.host, uuid),
-                    span(
-                        anchor(format!("follow me"))
-                            .set("href", &format!("http://{}/cal/{}", handler.host, uuid)),
-                    )
-                    .as_string(),
-                )),
-                Err(err) => Some((format!("{}", err), String::new())),
-            }
+
+            Some(html_string)
         }
-        Err(err) => Some((format!("{}", err), String::new())),
+        Err(_) => None,
     }
+}
+
+pub fn calendar(
+    s: ArcStore,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("calendar" / String)
+        .and(warp::get())
+        .and(with_store(s))
+        .and_then(|name: String, s: ArcStore| async move {
+            match cal(s, name) {
+                Some(body) => Ok(warp::reply::html(body)),
+                None => Err(warp::reject()),
+            }
+        })
 }
