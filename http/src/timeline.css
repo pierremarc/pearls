@@ -1,25 +1,63 @@
-body{
+ body {
     font-family: sans-serif;
+    padding-left: 1em;
+}
+
+.project-wrapper {
+    display: flex;
+    padding-bottom: 2em;
+}
+
+.project-wrapper H2 {
+    margin-top: 0;
+}
+
+.project-gauge {
+    height: 11em;
+    width: 30px;
+    border: 3px solid #000;
+    margin-right: 1em;
+    display: flex;
+    flex-direction: column;
+}
+.project-gauge > div {
+    width: 100%;
+}
+
+.time-over {
+    background-color: red;
+}
+.time-done {
+    background-color: #000;
+}
+
+.info-wrapper {
+    display: flex;
+    margin-bottom: 0.5em;
+}
+
+.info-wrapper .label {
+    margin-right: 1ch;
 }
 
 .month {
-    border: 1px solid grey; 
+    border: 1px solid grey;
     border-top: none;
 }
 
-.week{
+.week {
     display: flex;
-    
+
     font-size: 8pt;
     min-height: 64px;
 }
 .week.empty {
-    display:none;
+    display: none;
 }
 .day {
     display: flex;
     flex-direction: column;
-     flex-grow: 1;
+    flex-grow: 1;
     flex-basis: 0;
 }
 
@@ -35,7 +73,6 @@ body{
 
 .task {
     background-color: #eee;
-    //border: 1px solid gray;
     padding: 3px;
     margin: 3px;
 }

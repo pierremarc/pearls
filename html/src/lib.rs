@@ -94,6 +94,17 @@ impl Element {
         self.set("class", val)
     }
 
+    pub fn add_class<S>(self, val: S) -> Element
+    where
+        S: Into<String>,
+    {
+        let new_class = match self.attrs.get("class") {
+            None => val.into(),
+            Some(class) => format!("{} {}", class, val.into()),
+        };
+        self.set("class", new_class)
+    }
+
     pub fn append_node(self, node: Node) -> Element {
         if self.empty {
             return self;

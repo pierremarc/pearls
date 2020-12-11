@@ -53,7 +53,7 @@ impl AggregatedTaskRecord {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ProjectRecord {
     pub id: i64,
     pub name: String,
@@ -127,7 +127,7 @@ pub enum Name {
     InsertProject,
     InsertNotification,
     InsertCal,
-UpdateCompleted,
+    UpdateCompleted,
     UpdateDeadline,
     UpdateProvision,
     UpdateTaskEnd,
@@ -166,6 +166,30 @@ fn sql(name: Name) -> &'static str {
     }
 }
 
+// macro_rules! migrate_versions {
+//     ($($v:tt),*) => {
+//         match user_version {
+//             $(
+//                 ($v - 1) => {
+//                     conn.execute_batch(include_str!(concat!("sql/migrations/",stringify!($v), ".sql")))
+//                         .expect("Failed migration: 001.sql");
+//                     migrate(conn);
+//                 }
+//             )
+//         _ => println!("Migrate completed, we're at version {}", user_version),
+//         }
+//     }
+// }
+
+// fn migrate(conn: &Connection) {
+//     let user_version = conn.query_row(
+//         "SELECT user_version  FROM pragma_user_version();",
+//         NO_PARAMS,
+//         |row| row.get::<usize, i64>(0),
+//     ).expect("Could not get user_version from the database, \nmeans we can't process DB version check and migrations. \nAborting");
+//     migrate_versions!(001, 002);
+// }
+
 fn migrate(conn: &Connection) {
     let user_version = conn.query_row(
         "SELECT user_version  FROM pragma_user_version();",
@@ -177,6 +201,12 @@ fn migrate(conn: &Connection) {
             conn.execute_batch(include_str!("sql/migrations/001.sql"))
                 .expect("Failed migration: 001.sql");
             println!("Applied sql/migrations/001.sql");
+            migrate(conn);
+        }
+        1 => {
+            conn.execute_batch(include_str!("sql/migrations/002.sql"))
+                .expect("Failed migration: 002.sql");
+            println!("Applied sql/migrations/002.sql");
             migrate(conn);
         }
         _ => println!("Migrate completed, we're at version {}", user_version),
@@ -408,7 +438,7 @@ impl Store {
         self.map_rows(
             Name::SelectProject,
             named_params! {
-                ":project": format!("%{}%", project),
+                ":project": project.clone(),
             },
             AggregatedTaskRecord::from_row,
         )
@@ -418,7 +448,7 @@ impl Store {
         self.map_rows(
             Name::SelectProjectDetail,
             named_params! {
-                ":project": format!("%{}%", project),
+                ":project": project.clone(),
             },
             TaskRecord::from_row,
         )
