@@ -3,6 +3,9 @@ SELECT project,
   task,
   start_time,
   end_time,
-  end_time - start_time
+  SUM(end_time - start_time)
 FROM command_do
-WHERE project = :project;
+WHERE project = :project
+GROUP BY project,
+  username,
+  task;
