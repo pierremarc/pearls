@@ -253,103 +253,45 @@ where
     }
 }
 
-pub fn html<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("html", c)
+macro_rules! known {
+    ($tag:ident, $f:ident) => {
+        pub fn $f<C>(c: C) -> Element
+        where
+            C: Into<Children>,
+        {
+            element(stringify!($tag), c)
+        }
+    };
+    ($tag:ident) => {
+        pub fn $tag<C>(c: C) -> Element
+        where
+            C: Into<Children>,
+        {
+            element(stringify!($tag), c)
+        }
+    };
 }
 
-pub fn head<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("head", c)
-}
-
-pub fn meta<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("meta", c)
-}
-
-pub fn body<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("body", c)
-}
-
-pub fn div<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("div", c)
-}
-
-pub fn span<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("span", c)
-}
-
-pub fn table<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("table", c)
-}
-
-pub fn tr<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("tr", c)
-}
-
-pub fn td<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("td", c)
-}
-
-pub fn code<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("code", c)
-}
-
-pub fn h1<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("h1", c)
-}
-
-pub fn h2<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("h2", c)
-}
-
-pub fn style<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("style", c)
-}
-
-pub fn anchor<C>(c: C) -> Element
-where
-    C: Into<Children>,
-{
-    element("a", c)
-}
+known!(html);
+known!(meta);
+known!(head);
+known!(body);
+known!(div);
+known!(span);
+known!(table);
+known!(tr);
+known!(td);
+known!(code);
+known!(h1);
+known!(h2);
+known!(h3);
+known!(h4);
+known!(style);
+known!(a, anchor);
+known!(ul);
+known!(ol);
+known!(li);
+known!(p, paragraph);
 
 pub fn with_doctype(e: Element) -> String {
     format!("<!DOCTYPE html>\n{}", e.as_string())

@@ -169,11 +169,11 @@ fn add() -> CommandParser {
 }
 
 fn digest() -> CommandParser {
-    let cn = seq(b"!project") - space();
+    let cn = seq(b"!digest") - space();
     let id = ident();
     let all = cn + id;
     all.map(|(_, project_name)| Command::Digest(project_name))
-        .name("project")
+        .name("digest")
 }
 
 fn cal() -> CommandParser {
@@ -181,7 +181,7 @@ fn cal() -> CommandParser {
     let id = ident();
     let all = cn + id;
     all.map(|(_, project_name)| Command::Cal(project_name))
-        .name("project")
+        .name("cal")
 }
 
 fn start() -> CommandParser {

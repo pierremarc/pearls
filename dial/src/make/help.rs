@@ -49,7 +49,7 @@ pub fn help() -> Option<(String, String)> {
 new one with same project and task for <em>duration</em>
         <h4>!ls</h4>
             list current tasks
-        <h4>!project <em>project-name</em></h4>
+        <h4>!digest <em>project-name</em></h4>
             give stat for a given project
         <h4>!since <em>date-or-duration</em></h4>
             a summary of your tasks since date

@@ -1,6 +1,8 @@
 use crate::bot;
 use std::time;
 
+use super::common::select_project;
+
 pub fn switch(
     handler: &mut bot::CommandHandler,
     user: String,
@@ -14,7 +16,9 @@ pub fn switch(
         .unwrap_or(Vec::new());
 
     match pendings.first() {
-        Some(rec) => match handler
+        Some(rec) => match select_project(handler, &project) {
+            Err(candidates) => Some((candidates.as_text(""), candidates.as_html(""))),
+            Ok(_) =>  match handler
             .store
             .update_task_end(rec.id, now.clone())
             .and_then(|_| {
@@ -22,7 +26,8 @@ pub fn switch(
             }) {
             Err(err) => Some((format!("Error: {}", err), String::new())),
             Ok(_) => Some((format!("Good {}ing!", task.clone()), String::new())),
-        },
+        }
+    },
         None => Some((
             String::from("There's nothing to !switch from, you might want to !do."),
             String::from("There's nothing to <strong>!switch</strong> from, you might want to <strong>!do<strong>."),
