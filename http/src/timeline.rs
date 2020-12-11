@@ -36,8 +36,10 @@ fn remaining(provision: Duration, done: Duration) -> Element {
     }
 }
 
-fn to_hour(d: Duration) -> u64 {
-    d.as_secs() / 3600
+fn to_hour(d: Duration) -> u128 {
+    let m = d.as_millis() / 3600;
+    let m2 = m + 500;
+    m2 / 1000
 }
 fn format_hour(d: Duration) -> String {
     format!("{}h", to_hour(d))
