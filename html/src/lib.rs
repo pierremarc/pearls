@@ -188,31 +188,31 @@ impl From<Vec<Element>> for Children {
 
 impl From<[Element; 2]> for Children {
     fn from(es: [Element; 2]) -> Children {
-        Children::Many(es.into_iter().map(|e| e.into()).collect())
+        Children::Many(es.iter().map(|e| e.into()).collect())
     }
 }
 
 impl From<[Element; 3]> for Children {
     fn from(es: [Element; 3]) -> Children {
-        Children::Many(es.into_iter().map(|e| e.into()).collect())
+        Children::Many(es.iter().map(|e| e.into()).collect())
     }
 }
 
 impl From<[Element; 4]> for Children {
     fn from(es: [Element; 4]) -> Children {
-        Children::Many(es.into_iter().map(|e| e.into()).collect())
+        Children::Many(es.iter().map(|e| e.into()).collect())
     }
 }
 
 impl From<[Element; 5]> for Children {
     fn from(es: [Element; 5]) -> Children {
-        Children::Many(es.into_iter().map(|e| e.into()).collect())
+        Children::Many(es.iter().map(|e| e.into()).collect())
     }
 }
 
 impl From<[Element; 6]> for Children {
     fn from(es: [Element; 6]) -> Children {
-        Children::Many(es.into_iter().map(|e| e.into()).collect())
+        Children::Many(es.iter().map(|e| e.into()).collect())
     }
 }
 

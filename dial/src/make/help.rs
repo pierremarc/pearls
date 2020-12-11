@@ -3,8 +3,12 @@ pub fn help() -> Option<(String, String)> {
         "
         !ping
             check if the bot's still alive
-        !new <project-name> <hours>
+        !new <project-name>
             register a new project
+        !deadline <project-name> <end time>
+            set a deadline for an existing project
+        !provision <project-name> <duration>
+            set provisioned time for an existing project
         !do <project-name> <task-name> <duration>
             start a new task that will last for <duration>
         !done <project-name> <task-name> <duration>
@@ -17,7 +21,7 @@ pub fn help() -> Option<(String, String)> {
             stop your current task and create a new one with same project and task for <duration>
         !ls
             list current tasks
-        !project <project-name>
+        !digest <project-name>
             give stat for a given project
         !since <date or duration>
             a summary of your tasks since date
@@ -26,8 +30,12 @@ pub fn help() -> Option<(String, String)> {
         "
         <h4>!ping</h4>
             check if the bot's still alive
-        <h4>!new <em>project-name</em> <em>hours</em></h4>
+        <h4>!new <em>project-name</em></h4>
             register a new project
+        <h4>!deadline <em>project-name</em> <em>end-time</em></h4>
+            set a deadline for an existing project
+        <h4>!provision <em>project-name</em> <em>duration</em></h4>
+            set provisioned time for an existing project
         <h4>!do <em>project-name</em> <em>task-name</em> <em>duration</em></h4>
         start a new task that will last for <em>duration</em>.
         <h4>!done <em>project-name</em> <em>task-name</em> <em>duration</em></h4>

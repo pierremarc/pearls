@@ -1,19 +1,16 @@
 use crate::bot;
 use std::time;
 
-pub fn new(
+pub fn deadline(
     handler: &mut bot::CommandHandler,
-    username: String,
     project: String,
+    d: time::SystemTime,
 ) -> Option<(String, String)> {
-    match handler
-        .store
-        .insert_project(username, project, time::SystemTime::now())
-    {
+    match handler.store.update_deadline(project, d) {
         Err(_err) => Some((
             "Sorry, Err'd while saving to DB".into(),
             "Sorry, Err'd while saving to DB".into(),
         )),
-        Ok(_) => Some(("Yeah! New Project!".into(), String::new())),
+        Ok(_) => Some(("Updated deadline".into(), String::new())),
     }
 }

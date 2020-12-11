@@ -53,13 +53,15 @@ impl AggregatedTaskRecord {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ProjectRecord {
     pub id: i64,
     pub name: String,
     pub username: String,
     pub start_time: time::SystemTime,
-    pub duration: time::Duration,
+    // pub duration: time::Duration,
+    pub end_time: Option<time::SystemTime>,
+    pub provision: Option<time::Duration>,
 }
 
 impl ProjectRecord {
@@ -69,7 +71,8 @@ impl ProjectRecord {
             name: row.get(1)?,
             username: row.get(2)?,
             start_time: st_from_ts(row.get(3)?),
-            duration: dur_from_ts(row.get(4)?),
+            end_time: row.get(4).map(st_from_ts).ok(),
+            provision: row.get(5).map(dur_from_ts).ok(),
         })
     }
 }
@@ -122,7 +125,10 @@ pub enum Name {
     InsertProject,
     InsertNotification,
     InsertCal,
+    UpdateDeadline,
+    UpdateProvision,
     UpdateTaskEnd,
+    SelectAllProjectInfo,
     SelectCurrentTask,
     SelectCurrentTaskFor,
     SelectLatestTaskFor,
@@ -140,6 +146,7 @@ fn sql(name: Name) -> &'static str {
         Name::InsertProject => include_str!("sql/insert_project.sql"),
         Name::InsertNotification => include_str!("sql/insert_notification.sql"),
         Name::InsertCal => include_str!("sql/insert_cal.sql"),
+        Name::SelectAllProjectInfo => include_str!("sql/select_all_project_info.sql"),
         Name::SelectCurrentTask => include_str!("sql/select_current_task.sql"),
         Name::SelectCurrentTaskFor => include_str!("sql/select_current_task_for.sql"),
         Name::SelectLatestTaskFor => include_str!("sql/select_latest_task_for.sql"),
@@ -150,7 +157,26 @@ fn sql(name: Name) -> &'static str {
         Name::SelectProjectInfo => include_str!("sql/select_project_info.sql"),
         Name::SelectUser => include_str!("sql/select_user.sql"),
         Name::SelectCal => include_str!("sql/select_cal.sql"),
+        Name::UpdateDeadline => include_str!("sql/update_deadline.sql"),
+        Name::UpdateProvision => include_str!("sql/update_provision.sql"),
     }
+}
+
+fn migrate(conn: &Connection) {
+    let user_version = conn.query_row(
+        "SELECT user_version  FROM pragma_user_version();",
+        NO_PARAMS,
+        |row| row.get::<usize, i64>(0),
+    ).expect("Could not get user_version from the database, \nmeans we can't process DB version check and migrations. \nAborting");
+    match user_version {
+        0 => {
+            conn.execute_batch(include_str!("sql/migrations/001.sql"))
+                .expect("Failed migration: 001.sql");
+            println!("Applied sql/migrations/001.sql");
+            migrate(conn);
+        }
+        _ => println!("Migrate completed, we're at version {}", user_version),
+    };
 }
 
 impl Store {
@@ -167,6 +193,9 @@ impl Store {
                     .expect("failed creating table notification");
                 conn.execute(include_str!("sql/create_cal.sql"), NO_PARAMS)
                     .expect("failed creating table cal");
+
+                migrate(&conn);
+
                 Ok(Store {
                     conn,
                     path: path.to_string_lossy().into(),
@@ -238,7 +267,6 @@ impl Store {
         username: String,
         name: String,
         start: time::SystemTime,
-        duration: time::Duration,
     ) -> Result<usize, StoreError> {
         self.exec(
             Name::InsertProject,
@@ -246,7 +274,34 @@ impl Store {
                 ":username": username.clone(),
                 ":name": name.clone(),
                 ":start": ts(&start),
-                ":duration":  dur(&duration),
+            },
+        )
+    }
+
+    pub fn update_deadline(
+        &mut self,
+        name: String,
+        end: time::SystemTime,
+    ) -> Result<usize, StoreError> {
+        self.exec(
+            Name::UpdateDeadline,
+            named_params! {
+                ":name": name.clone(),
+                ":end": ts(&end),
+            },
+        )
+    }
+
+    pub fn update_provision(
+        &mut self,
+        name: String,
+        provision: time::Duration,
+    ) -> Result<usize, StoreError> {
+        self.exec(
+            Name::UpdateProvision,
+            named_params! {
+                ":name": name.clone(),
+                ":provision": dur(&provision),
             },
         )
     }
@@ -310,6 +365,14 @@ impl Store {
                 ":user": user.clone(),
             },
             TaskRecord::from_row,
+        )
+    }
+
+    pub fn select_all_project_info(&self) -> Result<Vec<ProjectRecord>, StoreError> {
+        self.map_rows(
+            Name::SelectAllProjectInfo,
+            named_params! {},
+            ProjectRecord::from_row,
         )
     }
 

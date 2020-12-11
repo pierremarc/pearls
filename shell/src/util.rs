@@ -35,6 +35,13 @@ pub fn human_duration(std_d: time::Duration) -> String {
         chrono_humanize::Tense::Present,
     )
 }
+pub fn human_st(std_t: &time::SystemTime) -> String {
+    let d = date_time_from_st(std_t);
+    chrono_humanize::HumanTime::from(d).to_text_en(
+        chrono_humanize::Accuracy::Precise,
+        chrono_humanize::Tense::Present,
+    )
+}
 
 pub fn dur(d: &time::Duration) -> i64 {
     let millis = d.as_millis();

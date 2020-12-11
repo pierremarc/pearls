@@ -5,6 +5,7 @@ SELECT
   end_time,
   project,
   task
-FROM command_do
+FROM
+  command_do
 WHERE
-  project LIKE :project;
+  project = :project;

@@ -8,13 +8,15 @@ edition = "2018"
 
 [dependencies]
 clap = "2.33.0"
-humantime = "1.3.0"
+humantime = "2.0.1"
 chrono = "0.4.9"
-chrono-humanize = "0.0.11"
-crossbeam-channel = "0.4"
+chrono-humanize = "0.1.1"
+crossbeam-channel = "0.5"
 # matrix_bot_api = {git="https://github.com/zwieberl/matrix_bot_api"}
 matrix_bot_api = { path = "../matrix_bot_api" }
 shell = { path = "../shell" }
 html = {path = "../html"}
+http = {path = "../http"}
 tower-web = "0.3.7"
-tokio = "0.2.4"
+tokio = "0.3.5"
+strsim = "0.10.0"

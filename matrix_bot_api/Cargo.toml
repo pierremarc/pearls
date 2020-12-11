@@ -16,5 +16,5 @@ features = ["serde"]
 version = "0.4.8"
 
 [dev-dependencies]
-config = "0.9.3"
+config = "0.10.1"
 rand = "0.7.0"

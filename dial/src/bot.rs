@@ -57,7 +57,7 @@ impl CommandHandler {
                 match com {
                     Command::Ping => Some(("pong".into(), String::new())),
                     Command::List => make::list(self),
-                    Command::Add(project, d) => make::new(self, u, project.clone(), d.clone()),
+                    Command::Add(project) => make::new(self, u, project.clone()),
                     Command::Do(project, task, duration) => {
                         make::start(self, u, duration, project, task)
                     }
@@ -66,10 +66,12 @@ impl CommandHandler {
                     }
                     Command::Stop => make::stop(self, u),
                     Command::More(d) => make::more(self, u, d.clone()),
-                    Command::Project(project) => make::project(self, project),
+                    Command::Digest(project) => make::digest(self, project),
                     Command::Since(since) => make::since(self, u, since),
                     Command::Switch(project, task) => make::switch(self, u, project, task),
                     Command::Cal(project) => make::cal(self, project),
+                    Command::ProjectDeadline(project, end) => make::deadline(self, project, end),
+                    Command::ProjectProvision(project, d) => make::provision(self, project, d),
                 }
             }
             Err(err) => {

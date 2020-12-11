@@ -92,7 +92,7 @@ pub fn cal(handler: &mut bot::CommandHandler, project: String) -> Option<(String
         .select_project_info(project.clone())
         .unwrap_or(Vec::new())
         .first()
-        .map(|rec| dur(&rec.duration) / (1000 * 60 * 60))
+        .map(|rec| rec.provision.map_or(0, |d| dur(&d)) / (1000 * 60 * 60))
         .unwrap_or(0);
 
     match handler.store.select_project_detail(project.clone()) {

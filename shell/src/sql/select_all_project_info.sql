@@ -6,6 +6,4 @@ SELECT
     end_time,
     provision
 FROM
-    project
-WHERE
-    name = :project;
+    project;

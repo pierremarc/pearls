@@ -1,0 +1,13 @@
+[package]
+name = "http"
+version = "0.1.0"
+authors = ["Pierre Marchand <pierre-m@atelier-cartographique.be>"]
+edition = "2018"
+
+
+[dependencies]
+shell = { path = "../shell" }
+html = { path = "../html" }
+warp = "0.2.5"
+tokio =  { version = "0.2", features = ["full"] }
+

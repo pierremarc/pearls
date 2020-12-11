@@ -4,7 +4,7 @@ use shell::util::{display_username, dur, human_duration, make_table_row};
 use std::collections::HashSet;
 use std::time;
 
-pub fn project(handler: &mut bot::CommandHandler, project: String) -> Option<(String, String)> {
+pub fn digest(handler: &mut bot::CommandHandler, project: String) -> Option<(String, String)> {
     let available = handler
         .store
         .select_project_info(project.clone())
@@ -51,19 +51,20 @@ pub fn project(handler: &mut bot::CommandHandler, project: String) -> Option<(St
                     .duration_since(rec.start_time)
                     .unwrap_or(time::Duration::from_secs(0)))
             }) / (1000 * 60 * 60);
+
             let (h0, h1) = available
                 .first()
                 .map(|rec| {
                     (
                         format!(
                             "{} hours available, {} hours done\n",
-                            dur(&rec.duration) / (1000 * 60 * 60),
+                            rec.provision.map_or(0, |d| dur(&d)) / (1000 * 60 * 60),
                             done
                         ),
                         div(vec![
                             div(code(format!(
                                 "available: {} hours",
-                                dur(&rec.duration) / (1000 * 60 * 60)
+                                rec.provision.map_or(0, |d| dur(&d)) / (1000 * 60 * 60)
                             ))),
                             div(code(format!("done: {} hours", done))),
                         ]),

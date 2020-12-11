@@ -14,16 +14,18 @@ use std::time;
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub enum Command {
     Ping,
-    Add(String, time::Duration),
+    Add(String),
     Do(String, String, time::Duration),
     Done(String, String, time::Duration),
     Switch(String, String),
     Stop,
     More(time::Duration),
     List,
-    Project(String),
+    Digest(String),
     Cal(String),
     Since(time::SystemTime),
+    ProjectDeadline(String, time::SystemTime),
+    ProjectProvision(String, time::Duration),
 }
 
 // #[derive(Debug)]
@@ -54,7 +56,7 @@ fn string() -> Parser<u8, String> {
 fn letter() -> Parser<u8, u8> {
     let lc = one_of(b"abcdefghijklmnopqrstuvwxyz");
     let uc = one_of(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-    (lc | uc)
+    lc | uc
 }
 
 fn digit() -> Parser<u8, u8> {
@@ -62,15 +64,15 @@ fn digit() -> Parser<u8, u8> {
     n
 }
 
-fn integer() -> Parser<u8, u32> {
-    digit()
-        .repeat(1..)
-        .convert(|chars| String::from_utf8(chars.to_vec()))
-        .map(|s| match s.parse::<u32>() {
-            Ok(n) => n,
-            Err(_) => 0,
-        })
-}
+// fn integer() -> Parser<u8, u32> {
+//     digit()
+//         .repeat(1..)
+//         .convert(|chars| String::from_utf8(chars.to_vec()))
+//         .map(|s| match s.parse::<u32>() {
+//             Ok(n) => n,
+//             Err(_) => 0,
+//         })
+// }
 
 fn fixed_int(i: usize) -> Parser<u8, u32> {
     digit()
@@ -83,7 +85,7 @@ fn fixed_int(i: usize) -> Parser<u8, u32> {
 }
 
 fn ident() -> Parser<u8, String> {
-    let char_string = (letter() | digit() | one_of(b"_-")).repeat(1..);
+    let char_string = (letter() | digit() | one_of(b"_-/#@")).repeat(1..);
     char_string.convert(|chars| String::from_utf8(chars))
 }
 
@@ -160,18 +162,17 @@ fn ping() -> CommandParser {
 
 fn add() -> CommandParser {
     let cn = seq(b"!new") - space();
-    let id = ident() - space();
-    let dur = integer().map(|n| time::Duration::from_secs(u64::from(n) * 60u64 * 60u64));
-    let all = cn + id + dur;
-    all.map(|((_, project_name), duration)| Command::Add(project_name, duration))
+    let id = ident();
+    let all = cn + id;
+    all.map(|(_, project_name)| Command::Add(project_name))
         .name("new")
 }
 
-fn project() -> CommandParser {
+fn digest() -> CommandParser {
     let cn = seq(b"!project") - space();
     let id = ident();
     let all = cn + id;
-    all.map(|(_, project_name)| Command::Project(project_name))
+    all.map(|(_, project_name)| Command::Digest(project_name))
         .name("project")
 }
 
@@ -237,6 +238,24 @@ fn since() -> CommandParser {
     all.map(|(_, st)| Command::Since(st)).name("since")
 }
 
+fn deadline() -> CommandParser {
+    let cn = seq(b"!deadline") - space();
+    let id = ident() - space();
+    let d = date();
+    let all = cn + id + d;
+    all.map(|((_, project_name), d)| Command::ProjectDeadline(project_name, d))
+        .name("deadline")
+}
+
+fn provision() -> CommandParser {
+    let cn = seq(b"!provision") - space();
+    let id = ident() - space();
+    let d = duration();
+    let all = cn + id + d;
+    all.map(|((_, project_name), d)| Command::ProjectProvision(project_name, d))
+        .name("provision")
+}
+
 fn command() -> CommandParser {
     {
         ping()
@@ -245,11 +264,13 @@ fn command() -> CommandParser {
             | done()
             | stop()
             | list()
-            | project()
+            | digest()
             | since()
             | more()
             | switch()
             | cal()
+            | deadline()
+            | provision()
     }
     .name("command")
         - trailing_space()
@@ -284,10 +305,10 @@ mod tests {
         );
     }
     #[test]
-    fn parse_project_ok() {
+    fn parse_new_ok() {
         assert_eq!(
-            parse_command("!project ac-bot"),
-            Ok(Command::Project("ac-bot".into(),))
+            parse_command("!new ac-bot"),
+            Ok(Command::Add("ac-bot".into(),))
         );
     }
 }

@@ -5,9 +5,10 @@ SELECT
   start_time,
   end_time,
   SUM(end_time - start_time)
-FROM command_do
+FROM
+  command_do
 WHERE
-  project LIKE :project
+  project = :project
 GROUP BY
   project,
   username,

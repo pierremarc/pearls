@@ -1,0 +1,45 @@
+body{
+    font-family: sans-serif;
+}
+
+.month {
+    border: 1px solid grey; 
+    border-top: none;
+}
+
+.week{
+    display: flex;
+    
+    font-size: 8pt;
+    min-height: 64px;
+}
+.week.empty {
+    display:none;
+}
+.day {
+    display: flex;
+    flex-direction: column;
+     flex-grow: 1;
+    flex-basis: 0;
+}
+
+.in-month .weekday {
+    font-weight: bold;
+}
+
+.weekday {
+    border-bottom: 1px solid grey;
+    border-top: 1px solid grey;
+    text-align: center;
+}
+
+.task {
+    background-color: #eee;
+    //border: 1px solid gray;
+    padding: 3px;
+    margin: 3px;
+}
+
+.summary {
+    margin-bottom: 1em;
+}

@@ -1,4 +1,4 @@
-INSERT INTO project
-    (username, name, start_time, duration)
-VALUES 
-    (:username, :name, :start, :duration);
+INSERT INTO
+    project (username, name, start_time)
+VALUES
+    (:username, :name, :start);
