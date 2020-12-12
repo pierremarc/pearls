@@ -143,11 +143,11 @@ fn cal(store: ArcStore, project: String) -> Option<String> {
 pub fn calendar(
     s: ArcStore,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("calendar" / String)
+    warp::path!("calendar" / String / String)
         .and(warp::get())
         .and(with_store(s))
-        .and_then(|name: String, s: ArcStore| async move {
-            match cal(s, name) {
+        .and_then(|client: String, name: String, s: ArcStore| async move {
+            match cal(s, format!("{}/{}", client, name)) {
                 Some(body) => Ok(warp::reply::html(body)),
                 None => Err(warp::reject()),
             }
