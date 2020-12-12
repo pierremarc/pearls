@@ -2,7 +2,6 @@ use crate::bot;
 use html::{anchor, code, div, h2, table, Element};
 use shell::util::{display_username, dur, human_duration, make_table_row};
 use std::collections::HashSet;
-use std::time;
 
 use super::common::select_project;
 
@@ -50,12 +49,14 @@ pub fn digest(handler: &mut bot::CommandHandler, project: String) -> Option<(Str
                         })
                         .collect();
 
-                    let done = recs.iter().fold(0, |acc, rec| {
-                        acc + dur(&rec
-                            .end_time
-                            .duration_since(rec.start_time)
-                            .unwrap_or(time::Duration::from_secs(0)))
-                    }) / (1000 * 60 * 60);
+                    let done = recs
+                        .iter()
+                        .fold(std::time::Duration::from_secs(0), |acc, task| {
+                            println!("{} {:?}", task.project, task.duration);
+                            acc + task.duration
+                        })
+                        .as_secs()
+                        / 3600;
 
                     let (h0, h1) = available
                         .first()

@@ -157,7 +157,6 @@ fn make_bare(name: &str, _start_time: &SystemTime, done: &Duration) -> Element {
 }
 
 fn get_done(tasks: Vec<AggregatedTaskRecord>) -> std::time::Duration {
-    println!("get_done {}", tasks.len());
     tasks
         .iter()
         .fold(std::time::Duration::from_secs(0), |acc, task| {
