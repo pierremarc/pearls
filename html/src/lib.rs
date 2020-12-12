@@ -289,6 +289,7 @@ known!(head);
 known!(body);
 known!(div);
 known!(span);
+known!(em);
 known!(table);
 known!(tr);
 known!(td);

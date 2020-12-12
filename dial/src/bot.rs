@@ -76,7 +76,7 @@ impl CommandHandler {
             }
             Err(err) => {
                 println!("ParseError: {}", err);
-                make::help()
+                make::help(self)
             }
         }
     }

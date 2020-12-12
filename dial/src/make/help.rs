@@ -1,6 +1,9 @@
-pub fn help() -> Option<(String, String)> {
-    Some((
-        "
+use html::{anchor, div, em, h4, paragraph, span};
+
+use crate::bot;
+
+fn make_text(handler: &mut bot::CommandHandler) -> String {
+    format!("
         !ping
             check if the bot's still alive
         !new <project-name>
@@ -28,38 +31,85 @@ pub fn help() -> Option<(String, String)> {
             give stat for a given project
         !since <date or duration>
             a summary of your tasks since date
-        "
-        .into(),
-        "
-        <h4>!ping</h4>
-            check if the bot's still alive
-        <h4>!new <em>project-name</em></h4>
-            register a new project
-        <h4>!deadline <em>project-name</em> <em>end-time</em></h4>
-            set a deadline for an existing project
-        <h4>!provision <em>project-name</em> <em>duration</em></h4>
-            set provisioned time for an existing project
-        <h4>!complete <em>date?-name</em></h4>
-            set completion date for an existing project, if
-            date is not provided, it will take the current time instead.
-        <h4>!do <em>project-name</em> <em>task-name</em> <em>duration</em></h4>
-        start a new task that will last for <em>duration</em>.
-        <h4>!done <em>project-name</em> <em>task-name</em> <em>duration</em></h4>
-        register a task that has lasted for <em>duration</em> from now.
-        <h4>!switch <em>project-name</em> <em>task-name</em></em></h4>
-            stop your current task and create a new one that has the same end time as the current one
-        <h4>!stop</h4>
-            stop your current task
-        <h4>!more <em>duration</em></h4>
-            stop your current task and create a 
-new one with same project and task for <em>duration</em>
-        <h4>!ls</h4>
-            list current tasks
-        <h4>!digest <em>project-name</em></h4>
-            give stat for a given project
-        <h4>!since <em>date-or-duration</em></h4>
-            a summary of your tasks since date
-        "
-        .into(),
-    ))
+
+        A timeline is visible at http://{}/{}/timeline
+        ", handler.host, handler.room_id)
+}
+
+fn make_html(handler: &mut bot::CommandHandler) -> String {
+    div(vec![
+        h4("!ping"),
+        paragraph("check if the bot's still alive"),
+        h4(vec![span("!new "), em("project-name")]),
+        paragraph("register a new project"),
+        h4(vec![
+            span("!deadline  "),
+            em("project-name "),
+            em("end-time"),
+        ]),
+        paragraph("set a deadline for an existing project"),
+        h4(vec![
+            span("!provision  "),
+            em("project-name "),
+            em("duration"),
+        ]),
+        paragraph("set provisioned time for an existing project"),
+        h4(vec![span("!complete   "), em("date?")]),
+        paragraph(
+            "set completion date for an existing project, if
+        date is not provided, it will take the current time instead.",
+        ),
+        h4(vec![
+            span("!do  "),
+            em("project-name "),
+            em("task "),
+            em("duration "),
+        ]),
+        paragraph("start a new task that will last for <em>duration</em>."),
+        h4(vec![
+            span("!done  "),
+            em("project-name "),
+            em("task "),
+            em("duration "),
+        ]),
+        paragraph("register a task that has lasted for <em>duration</em> from now."),
+        h4(vec![
+            span("!switch  "),
+            em("project-name "),
+            em("task "),
+        ]),
+        paragraph("stop your current task and create a new one that has the same end time as the current one."),
+        h4(vec![
+            span("!stop  "),
+            ]),
+        paragraph("stop your current task."),
+        h4(vec![
+            span("!more  "),
+            em("duration "),
+            ]),
+        paragraph("stop your current task and create a new one with same project and task for <em>duration</em>."),
+        h4(vec![
+            span("!ls  "),
+            ]),
+        paragraph("list current tasks."),
+        h4(vec![
+            span("!digest  "),
+            em("project-name "),
+        ]),
+        paragraph("give stats for a given project."),
+        h4(vec![
+            span("!since  "),
+            em("duration "),
+        ]),
+        paragraph("a summary of your tasks since date."),
+        div(vec![
+            anchor("TIMELINE").set("href", format!("http://{}/{}/timeline
+        ", handler.host, handler.room_id))
+        ])
+        ])
+        .as_string()
+}
+
+pub fn help(handler: &mut bot::CommandHandler) -> Option<(String, String)> {
+    Some((make_text(handler), make_html(handler)))
 }
