@@ -171,6 +171,7 @@ fn get_projects(s: ArcStore) -> Result<Vec<TimelineProject>, StoreError> {
         let mut projects: Vec<TimelineProject> = rows
             .iter()
             .filter_map(|record| {
+                println!("{}: {:?}", record.name, record.completed);
                 if record.completed.is_some() {
                     None
                 } else {

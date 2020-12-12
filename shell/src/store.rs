@@ -59,7 +59,7 @@ pub struct ProjectRecord {
     pub name: String,
     pub username: String,
     pub start_time: time::SystemTime,
-    // pub duration: time::Duration,
+    // pub duration: time::Duration, removed in migration 001
     pub end_time: Option<time::SystemTime>,
     pub provision: Option<time::Duration>,
     pub completed: Option<time::SystemTime>,

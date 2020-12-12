@@ -4,6 +4,7 @@ SELECT
     username,
     start_time,
     end_time,
-    provision
+    provision,
+    completed
 FROM
     project;
