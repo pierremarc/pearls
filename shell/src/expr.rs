@@ -2,13 +2,11 @@ use crate::chrono::Datelike;
 use crate::chrono::TimeZone;
 use chrono::offset::Utc;
 use humantime;
-use pom::parser::*;
+use pom::parser::{end, is_a, one_of, seq, sym, Parser};
 use pom::Error;
-use pom::Parser;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::convert::TryInto;
-use std::slice;
 use std::time;
 
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
@@ -27,6 +25,21 @@ pub enum Command {
     Provision(String, time::Duration),
     Complete(String, time::SystemTime),
 }
+pub enum CommandName {
+    Ping,
+    Add,
+    Do,
+    Done,
+    Switch,
+    Stop,
+    More,
+    List,
+    Digest,
+    Since,
+    Deadline,
+    Provision,
+    Complete,
+}
 
 // #[derive(Debug)]
 // struct ParseCommandError;
@@ -39,27 +52,27 @@ pub enum Command {
 
 // impl Error for ParseCommandError {}
 
-fn space() -> Parser<u8, ()> {
+fn space<'a>() -> Parser<'a, u8, ()> {
     one_of(b" \t").repeat(1..).discard()
 }
 
-fn trailing_space() -> Parser<u8, ()> {
+fn trailing_space<'a>() -> Parser<'a, u8, ()> {
     one_of(b" \t").repeat(0..).discard()
 }
 
-fn string() -> Parser<u8, String> {
+fn string<'a>() -> Parser<'a, u8, String> {
     let any = is_a(|_| true);
     let char_string = any.repeat(1..) - (sym(b'.') | end().map(|_| b'.'));
     char_string.convert(|chars| String::from_utf8(chars))
 }
 
-fn letter() -> Parser<u8, u8> {
+fn letter<'a>() -> Parser<'a, u8, u8> {
     let lc = one_of(b"abcdefghijklmnopqrstuvwxyz");
     let uc = one_of(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     lc | uc
 }
 
-fn digit() -> Parser<u8, u8> {
+fn digit<'a>() -> Parser<'a, u8, u8> {
     let n = one_of(b"0123456789");
     n
 }
@@ -74,7 +87,7 @@ fn digit() -> Parser<u8, u8> {
 //         })
 // }
 
-fn fixed_int(i: usize) -> Parser<u8, u32> {
+fn fixed_int<'a>(i: usize) -> Parser<'a, u8, u32> {
     digit()
         .repeat(i)
         .convert(|chars| String::from_utf8(chars.to_vec()))
@@ -84,9 +97,18 @@ fn fixed_int(i: usize) -> Parser<u8, u32> {
         })
 }
 
-fn ident() -> Parser<u8, String> {
-    let char_string = (letter() | digit() | one_of(b"_-/#@")).repeat(1..);
+fn ident<'a>() -> Parser<'a, u8, String> {
+    let char_string = (letter() | digit() | one_of(b"_-")).repeat(1..);
     char_string.convert(|chars| String::from_utf8(chars))
+}
+
+fn project_ident<'a>() -> Parser<'a, u8, String> {
+    let client = ident();
+    let sep = sym(b'/');
+    let name = ident();
+    let all = client - sep + name;
+    all.map(|(client, name)| format!("{}/{}", client, name))
+        .name("Project identifier")
 }
 
 // fn duration_() -> Parser<u8, time::Duration> {
@@ -96,7 +118,7 @@ fn ident() -> Parser<u8, String> {
 //     })
 // }
 
-fn duration() -> Parser<u8, time::Duration> {
+fn duration<'a>() -> Parser<'a, u8, time::Duration> {
     let string_parser = string();
     Parser::new(
         move |input: &[u8], start: usize| match string_parser.parse(&input[start..]) {
@@ -120,7 +142,7 @@ fn st_from_ts(ts: i64) -> time::SystemTime {
     time::SystemTime::UNIX_EPOCH + time::Duration::from_millis(ts.try_into().unwrap())
 }
 
-fn date() -> Parser<u8, time::SystemTime> {
+fn date<'a>() -> Parser<'a, u8, time::SystemTime> {
     let sep = || one_of(b" -./");
     // YYYY-MM-DD
     let format1 = (fixed_int(4) - sep()) + (fixed_int(2) - sep()) + fixed_int(2);
@@ -153,32 +175,32 @@ fn date() -> Parser<u8, time::SystemTime> {
     mapped1 | mapped2
 }
 
-type CommandParser = Parser<u8, Command>;
+type CommandParser<'a> = Parser<'a, u8, Command>;
 
-fn ping() -> CommandParser {
+fn ping<'a>() -> CommandParser<'a> {
     let cn = seq(b"!ping");
     cn.map(|_| Command::Ping).name("ping")
 }
 
-fn add() -> CommandParser {
+fn add<'a>() -> CommandParser<'a> {
     let cn = seq(b"!new") - space();
-    let id = ident();
+    let id = project_ident();
     let all = cn + id;
     all.map(|(_, project_name)| Command::Add(project_name))
         .name("new")
 }
 
-fn digest() -> CommandParser {
+fn digest<'a>() -> CommandParser<'a> {
     let cn = seq(b"!digest") - space();
-    let id = ident();
+    let id = project_ident();
     let all = cn + id;
     all.map(|(_, project_name)| Command::Digest(project_name))
         .name("digest")
 }
 
-fn start() -> CommandParser {
+fn start<'a>() -> CommandParser<'a> {
     let cn = seq(b"!do") - space();
-    let id = ident() - space();
+    let id = project_ident() - space();
     let task = ident() - space();
     let d = duration();
     let all = cn + id + task + d;
@@ -186,9 +208,9 @@ fn start() -> CommandParser {
         .name("do")
 }
 
-fn done() -> CommandParser {
+fn done<'a>() -> CommandParser<'a> {
     let cn = seq(b"!done") - space();
-    let id = ident() - space();
+    let id = project_ident() - space();
     let task = ident() - space();
     let d = duration();
     let all = cn + id + task + d;
@@ -196,21 +218,21 @@ fn done() -> CommandParser {
         .name("done")
 }
 
-fn switch() -> CommandParser {
+fn switch<'a>() -> CommandParser<'a> {
     let cn = seq(b"!switch") - space();
-    let id = ident() - space();
+    let id = project_ident() - space();
     let task = ident();
     let all = cn + id + task;
     all.map(|((_, project_name), task)| Command::Switch(project_name, task))
         .name("switch")
 }
 
-fn stop() -> CommandParser {
+fn stop<'a>() -> CommandParser<'a> {
     let cn = seq(b"!stop");
     cn.map(|_| Command::Stop).name("stop")
 }
 
-fn more() -> CommandParser {
+fn more<'a>() -> CommandParser<'a> {
     let cn = seq(b"!more") - space();
     let d = duration();
     let all = cn + d;
@@ -218,54 +240,54 @@ fn more() -> CommandParser {
         .name("more")
 }
 
-fn list() -> CommandParser {
+fn list<'a>() -> CommandParser<'a> {
     let cn = seq(b"!ls");
     cn.map(|_| Command::List).name("list")
 }
 
-fn since() -> CommandParser {
+fn since<'a>() -> CommandParser<'a> {
     let cn = seq(b"!since");
     let t = date() | duration().map(|d| time::SystemTime::now() - d);
     let all = cn - space() + t;
     all.map(|(_, st)| Command::Since(st)).name("since")
 }
 
-fn deadline() -> CommandParser {
+fn deadline<'a>() -> CommandParser<'a> {
     let cn = seq(b"!deadline") - space();
-    let id = ident() - space();
+    let id = project_ident() - space();
     let d = date();
     let all = cn + id + d;
     all.map(|((_, project_name), d)| Command::Deadline(project_name, d))
         .name("deadline")
 }
 
-fn provision() -> CommandParser {
+fn provision<'a>() -> CommandParser<'a> {
     let cn = seq(b"!provision") - space();
-    let id = ident() - space();
+    let id = project_ident() - space();
     let d = duration();
     let all = cn + id + d;
     all.map(|((_, project_name), d)| Command::Provision(project_name, d))
         .name("provision")
 }
 
-fn complete() -> CommandParser {
+fn complete<'a>() -> CommandParser<'a> {
     let cn = seq(b"!complete") - space();
-    let id = ident() - space();
+    let id = project_ident() - space();
     let d = date();
     let all = cn + id + d;
     all.map(|((_, project_name), d)| Command::Complete(project_name, d))
         .name("complete")
 }
 
-fn complete_now() -> CommandParser {
+fn complete_now<'a>() -> CommandParser<'a> {
     let cn = seq(b"!complete") - space();
-    let id = ident();
+    let id = project_ident();
     let all = cn + id;
     all.map(|(_, project_name)| Command::Complete(project_name, time::SystemTime::now()))
         .name("complete_now")
 }
 
-fn command() -> CommandParser {
+fn command<'a>() -> CommandParser<'a> {
     {
         ping()
             | add()
@@ -287,16 +309,8 @@ fn command() -> CommandParser {
 }
 
 pub fn parse_command<'a>(expr: &'a str) -> Result<Command, Error> {
-    println!("enter parser {}", expr);
-    let ptr = expr.as_ptr();
-    let len = expr.len();
-    let result = {
-        unsafe {
-            let slice = slice::from_raw_parts(ptr, len);
-            command().parse(slice)
-        }
-    };
-    println!("leaving parser {} {}", expr, result.is_ok());
+    let result = command().parse(expr.as_bytes());
+    println!("Parsed \"{}\" {}", expr, result.is_ok());
     result
 }
 
@@ -306,9 +320,9 @@ mod tests {
     #[test]
     fn parse_do_ok() {
         assert_eq!(
-            parse_command("!do foo-0 dev 3h 30m"),
+            parse_command("!do foo/0 dev 3h 30m"),
             Ok(Command::Do(
-                "foo-0".into(),
+                "foo/0".into(),
                 "dev".into(),
                 time::Duration::from_secs(3 * 60 * 60 + (30 * 60))
             ))
@@ -317,8 +331,26 @@ mod tests {
     #[test]
     fn parse_new_ok() {
         assert_eq!(
-            parse_command("!new ac-bot"),
-            Ok(Command::Add("ac-bot".into(),))
+            add().parse("!new ac/bot".as_bytes()),
+            Ok(Command::Add("ac/bot".into(),))
+        );
+    }
+    #[test]
+    fn parse_project_ident() {
+        assert_eq!(
+            project_ident().parse("ac/bot".as_bytes()),
+            Ok(String::from("ac/bot"))
+        );
+    }
+    #[test]
+    fn parse_project_ident_fail() {
+        assert_eq!(
+            project_ident().parse("ac-bot".as_bytes()),
+            Err(pom::Error::Custom {
+                message: "failed to parse Project identifier".into(),
+                position: 0,
+                inner: Some(Box::new(pom::Error::Incomplete))
+            })
         );
     }
 }
