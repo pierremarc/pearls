@@ -148,7 +148,7 @@ fn date<'a>() -> Parser<'a, u8, time::SystemTime> {
     let format1 = (fixed_int(4) - sep()) + (fixed_int(2) - sep()) + fixed_int(2);
 
     // DD-MM[-YYYY]
-    let format2 = (fixed_int(2) - sep()) + fixed_int(2) + (-sep() + fixed_int(4)).opt();
+    let format2 = (fixed_int(2) - sep()) + fixed_int(2) + (sep() + fixed_int(4)).opt();
 
     let mapped1 = format1.map(|((y, m), d)| {
         st_from_ts(
@@ -159,17 +159,10 @@ fn date<'a>() -> Parser<'a, u8, time::SystemTime> {
     });
 
     let mapped2 = format2.map(|((d, m), opt_y)| {
-        let (_, y) = opt_y.unwrap_or_else(|| {
-            (
-                true,
-                Utc::now().year().try_into().unwrap_or(u32::max_value()),
-            )
-        });
-        st_from_ts(
-            Utc.ymd(i32::try_from(y).unwrap_or(i32::max_value()), m, d)
-                .and_hms(0, 1, 1)
-                .timestamp_millis(),
-        )
+        let y: i32 = opt_y
+            .map(|(_, y)| i32::try_from(y).unwrap_or(i32::max_value()))
+            .unwrap_or(Utc::now().year().try_into().unwrap_or(i32::max_value()));
+        st_from_ts(Utc.ymd(y, m, d).and_hms(0, 1, 1).timestamp_millis())
     });
 
     mapped1 | mapped2
@@ -345,6 +338,24 @@ mod tests {
                 position: 0,
                 inner: Some(Box::new(pom::Error::Incomplete))
             })
+        );
+    }
+    #[test]
+    fn parse_date_iso() {
+        assert_eq!(
+            date().parse("2042-05-29".as_bytes()),
+            Ok(st_from_ts(
+                Utc.ymd(2042, 05, 29).and_hms(0, 1, 1).timestamp_millis(),
+            ))
+        );
+    }
+    #[test]
+    fn parse_date_fancy() {
+        assert_eq!(
+            date().parse("29/05/2042".as_bytes()),
+            Ok(st_from_ts(
+                Utc.ymd(2042, 05, 29).and_hms(0, 1, 1).timestamp_millis(),
+            ))
         );
     }
 }
