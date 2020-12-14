@@ -35,6 +35,10 @@ fn make_day(day: &LocalTime, tasks: impl Iterator<Item = TaskRecord>, class: &st
     .set("class", &format!("day {}", class))
 }
 
+fn month_and_year(d: &chrono::DateTime<chrono::Local>) -> String {
+    format!("{} {}", month_name(d), d.year())
+}
+
 fn cal_project(recs: &Vec<TaskRecord>) -> Element {
     let mut cal: Calendar<TaskRecord> = Calendar::new();
     for t in recs.into_iter() {
@@ -57,11 +61,11 @@ fn cal_project(recs: &Vec<TaskRecord>) -> Element {
         .fold((main, cur_month, cur_week), |(b, m, w), item| match item {
             CalendarItem::Month(d) => fm.map(
                 (b, m, w),
-                |(b, _, w)| (b, div(h1(month_name(&d))).set("class", "month"), w),
+                |(b, _, w)| (b, div(h1(month_and_year(&d))).set("class", "month"), w),
                 |(b, m, _)| {
                     (
                         b + m,
-                        div(h1(month_name(&d))).set("class", "month"),
+                        div(h1(month_and_year(&d))).set("class", "month"),
                         div(Empty).set("class", "week empty"),
                     )
                 },
