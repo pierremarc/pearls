@@ -1,11 +1,16 @@
  body {
     font-family: sans-serif;
-    padding-left: 1em;
+    padding: 0;
+    margin: 0;
+}
+
+h1 {
+    margin-left: 2rem;
 }
 
 .project-wrapper {
     display: flex;
-    padding-bottom: 2em;
+    padding: 1rem 2rem;
 }
 
 .project-wrapper H2 {
@@ -79,4 +84,12 @@
 
 .summary {
     margin-bottom: 1em;
+}
+
+.completed {
+    background-color: rgb(233, 233, 233);
+}
+
+.completed .time-available {
+    background-color: rgb(27, 188, 252);
 }
