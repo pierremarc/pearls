@@ -2,19 +2,25 @@ use html::{anchor, div, em, h4, paragraph, span};
 
 use crate::bot;
 
+const DATE_HELP: &str = "
+    Date must be formated as YYYY-MM-DD, DD-MM-YYY or DD-MM (for a date within the current year)
+";
+
 fn make_text(handler: &mut bot::CommandHandler) -> String {
     format!("
         !ping
             check if the bot's still alive
         !new <project-name>
             register a new project
-        !deadline <project-name> <end time>
+        !deadline <project-name> <date>
             set a deadline for an existing project
+            {}
         !provision <project-name> <duration>
             set provisioned time for an existing project
         !complete <date?> 
             set completion date for an existing project, if
             date is not provided, it will take the current time instead.
+            {}
         !do <project-name> <task-name> <duration>
             start a new task that will last for <duration>
         !done <project-name> <task-name> <duration>
@@ -33,7 +39,7 @@ fn make_text(handler: &mut bot::CommandHandler) -> String {
             a summary of your tasks since date
 
         A timeline is visible at http://{}/{}/timeline
-        ", handler.host, handler.room_id)
+        ", DATE_HELP, DATE_HELP, handler.host, handler.room_id)
 }
 
 fn make_html(handler: &mut bot::CommandHandler) -> String {
@@ -45,9 +51,10 @@ fn make_html(handler: &mut bot::CommandHandler) -> String {
         h4(vec![
             span("!deadline  "),
             em("project-name "),
-            em("end-time"),
+            em("date"),
         ]),
         paragraph("set a deadline for an existing project"),
+        paragraph(DATE_HELP),
         h4(vec![
             span("!provision  "),
             em("project-name "),
@@ -57,8 +64,9 @@ fn make_html(handler: &mut bot::CommandHandler) -> String {
         h4(vec![span("!complete   "), em("date?")]),
         paragraph(
             "set completion date for an existing project, if
-        date is not provided, it will take the current time instead.",
+            date is not provided, it will take the current time instead.",
         ),
+        paragraph(DATE_HELP),
         h4(vec![
             span("!do  "),
             em("project-name "),
