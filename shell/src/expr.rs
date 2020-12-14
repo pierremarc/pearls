@@ -273,18 +273,13 @@ fn provision<'a>() -> CommandParser<'a> {
 fn complete<'a>() -> CommandParser<'a> {
     let cn = seq(b"!complete") - space();
     let id = project_ident() - space();
-    let d = date();
+    let d = date().opt();
     let all = cn + id + d;
-    all.map(|((_, project_name), d)| Command::Complete(project_name, d))
-        .name("complete")
-}
-
-fn complete_now<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!complete") - space();
-    let id = project_ident();
-    let all = cn + id;
-    all.map(|(_, project_name)| Command::Complete(project_name, time::SystemTime::now()))
-        .name("complete_now")
+    all.map(|((_, project_name), d)| match d {
+        Some(d) => Command::Complete(project_name, d),
+        None => Command::Complete(project_name, time::SystemTime::now()),
+    })
+    .name("complete")
 }
 
 fn command<'a>() -> CommandParser<'a> {
@@ -302,7 +297,6 @@ fn command<'a>() -> CommandParser<'a> {
             | deadline()
             | provision()
             | complete()
-            | complete_now()
     }
     .name("command")
         - trailing_space()

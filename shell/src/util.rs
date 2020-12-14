@@ -43,6 +43,10 @@ pub fn human_st(std_t: &time::SystemTime) -> String {
     )
 }
 
+pub fn st_to_datestring(std_t: &time::SystemTime) -> String {
+    format!("{}", date_time_from_st(std_t).format("%F"))
+}
+
 pub fn dur(d: &time::Duration) -> i64 {
     let millis = d.as_millis();
     i64::try_from(millis).unwrap_or(i64::max_value())

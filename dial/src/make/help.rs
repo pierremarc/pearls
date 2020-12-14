@@ -3,7 +3,8 @@ use html::{anchor, div, em, h4, paragraph, span};
 use crate::bot;
 
 const DATE_HELP: &str = "
-    Date must be formated as YYYY-MM-DD, DD-MM-YYY or DD-MM (for a date within the current year)
+    Date must be formated as YYYY-MM-DD, DD-MM-YYY or DD-MM (for a date within the current year).
+    The separatore can be either '-', '/' or '.'.
 ";
 
 fn make_text(handler: &mut bot::CommandHandler) -> String {

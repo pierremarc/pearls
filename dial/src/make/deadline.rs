@@ -18,7 +18,10 @@ pub fn deadline(
                 "Sorry, Err'd while saving to DB".into(),
                 "Sorry, Err'd while saving to DB".into(),
             )),
-            Ok(_) => Some(("Updated deadline".into(), String::new())),
+            Ok(_) => Some((
+                format!("Updated deadline to {}", shell::util::st_to_datestring(&d)),
+                String::new(),
+            )),
         },
     }
 }
