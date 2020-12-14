@@ -1,4 +1,4 @@
-use html::{body, div, em, h1, h2, head, html, span, style, with_doctype, Element, Empty};
+use html::{anchor, body, div, em, h1, h2, head, html, span, style, with_doctype, Element, Empty};
 use shell::{
     store::{AggregatedTaskRecord, ProjectRecord, StoreError},
     util::date_time_from_st,
@@ -10,7 +10,7 @@ use std::{
 };
 use warp::Filter;
 
-use crate::{with_store, ArcStore};
+use crate::{with_base_path, with_store, ArcStore};
 
 type TimelineProject = (ProjectRecord, std::time::Duration);
 
@@ -134,16 +134,20 @@ fn wrapper_class(opt_completed: Option<SystemTime>) -> String {
     }
 }
 
-fn project_title(name: &str, opt_completed: Option<SystemTime>) -> Element {
+fn project_title(name: &str, base_path: String, opt_completed: Option<SystemTime>) -> Element {
     match opt_completed {
-        None => h2(name),
-        Some(t) => h2([em(shell::util::st_to_datestring(&t)), span(" "), span(name)]),
+        None => h2(anchor(name).set("href", format!("{}calendar/{}", base_path, name))),
+        Some(t) => h2([
+            em(shell::util::st_to_datestring(&t)),
+            span(" "),
+            anchor(name).set("href", format!("{}{}", base_path, name)),
+        ]),
     }
 }
 
 fn make_full(
     name: &str,
-    _start_time: &SystemTime,
+    base_path: String,
     end: &SystemTime,
     provision: &Duration,
     done: &Duration,
@@ -152,7 +156,7 @@ fn make_full(
     div([
         make_gauge(provision, done),
         div([
-            project_title(name, opt_completed),
+            project_title(name, base_path, opt_completed),
             kv("Deadline:", &format_date(end)),
             remaining(*provision, *done),
             kv("Provisioned:", &format_hour(*provision)),
@@ -164,7 +168,7 @@ fn make_full(
 
 fn make_with_provision(
     name: &str,
-    _start_time: &SystemTime,
+    base_path: String,
     provision: &Duration,
     done: &Duration,
     opt_completed: Option<SystemTime>,
@@ -172,7 +176,7 @@ fn make_with_provision(
     div([
         make_gauge(provision, done),
         div([
-            project_title(name, opt_completed),
+            project_title(name, base_path, opt_completed),
             remaining(*provision, *done),
             kv("Provisioned:", &format_hour(*provision)),
             kv("Done:", &format_hour(*done)),
@@ -183,7 +187,7 @@ fn make_with_provision(
 
 fn make_with_end(
     name: &str,
-    _start_time: &SystemTime,
+    base_path: String,
     end: &SystemTime,
     done: &Duration,
     opt_completed: Option<SystemTime>,
@@ -191,7 +195,7 @@ fn make_with_end(
     div([
         make_gauge(done, done),
         div([
-            project_title(name, opt_completed),
+            project_title(name, base_path, opt_completed),
             kv("Deadline:", &format_date(end)),
             kv("Done:", &format_hour(*done)),
         ]),
@@ -201,14 +205,14 @@ fn make_with_end(
 
 fn make_bare(
     name: &str,
-    _start_time: &SystemTime,
+    base_path: String,
     done: &Duration,
     opt_completed: Option<SystemTime>,
 ) -> Element {
     div([
         make_gauge(done, done),
         div([
-            project_title(name, opt_completed),
+            project_title(name, base_path, opt_completed),
             kv("Done:", &format_hour(*done)),
         ]),
     ])
@@ -258,7 +262,7 @@ fn get_projects(s: ArcStore) -> Result<Vec<TimelineProject>, StoreError> {
     projects
 }
 
-async fn timeline_handler(s: ArcStore) -> Result<impl warp::Reply, Infallible> {
+async fn timeline_handler(s: ArcStore, base_path: String) -> Result<impl warp::Reply, Infallible> {
     let css = style(String::from(include_str!("timeline.css"))).set("type", "text/css");
 
     match get_projects(s) {
@@ -270,16 +274,25 @@ async fn timeline_handler(s: ArcStore) -> Result<impl warp::Reply, Infallible> {
             let elements: Vec<Element> = projects
                 .iter()
                 .map(|(p, done)| match (p.end_time, p.provision) {
-                    (Some(end), Some(provision)) => {
-                        make_full(&p.name, &p.start_time, &end, &provision, done, p.completed)
-                    }
-                    (None, Some(provision)) => {
-                        make_with_provision(&p.name, &p.start_time, &provision, done, p.completed)
-                    }
+                    (Some(end), Some(provision)) => make_full(
+                        &p.name,
+                        base_path.clone(),
+                        &end,
+                        &provision,
+                        done,
+                        p.completed,
+                    ),
+                    (None, Some(provision)) => make_with_provision(
+                        &p.name,
+                        base_path.clone(),
+                        &provision,
+                        done,
+                        p.completed,
+                    ),
                     (Some(end), None) => {
-                        make_with_end(&p.name, &p.start_time, &end, done, p.completed)
+                        make_with_end(&p.name, base_path.clone(), &end, done, p.completed)
                     }
-                    (None, None) => make_bare(&p.name, &p.start_time, done, p.completed),
+                    (None, None) => make_bare(&p.name, base_path.clone(), done, p.completed),
                 })
                 .collect();
 
@@ -293,10 +306,12 @@ async fn timeline_handler(s: ArcStore) -> Result<impl warp::Reply, Infallible> {
 
 pub fn timeline(
     s: ArcStore,
+    token: String,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::path!("timeline")
         .and(warp::get())
         .and(with_store(s))
+        .and(with_base_path(token))
         .and_then(timeline_handler)
 }
 
