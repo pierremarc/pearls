@@ -150,3 +150,28 @@ h1 {
 .completed .info-wrapper.not-in-time > .value {
     font-weight: normal;
 }
+
+
+/* Inline #1 | http://0.0.0.0:7777/!UGwqvmUMGyXJEIdkrn:matrix.org/timeline */
+
+.note {
+  font-size: 80%;
+}
+
+.note-content {
+  padding: 0;
+  margin-top: 0;
+}
+
+.note-date {
+  float: right;
+}
+
+summary {
+  font-style: italic;
+}
+
+.note-content {
+  /* margin-top: 0; */
+  margin: 2px 0 6px auto;
+}

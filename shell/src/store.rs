@@ -79,21 +79,23 @@ impl ProjectRecord {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct CalRecord {
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct NoteRecord {
     pub id: i64,
-    pub uuid: String,
-    pub creation_time: time::SystemTime,
+    pub username: String,
+    pub project: String,
+    pub created_at: time::SystemTime,
     pub content: String,
 }
 
-impl CalRecord {
-    fn from_row(row: &Row) -> SqlResult<CalRecord> {
-        Ok(CalRecord {
+impl NoteRecord {
+    fn from_row(row: &Row) -> SqlResult<NoteRecord> {
+        Ok(NoteRecord {
             id: row.get(0)?,
-            uuid: row.get(1)?,
-            creation_time: st_from_ts(row.get(2)?),
-            content: row.get(3)?,
+            username: row.get(1)?,
+            project: row.get(2)?,
+            created_at: st_from_ts(row.get(3)?),
+            content: row.get(4)?,
         })
     }
 }
@@ -124,71 +126,47 @@ impl std::error::Error for StoreError {}
 
 pub enum Name {
     InsertDo,
-    InsertProject,
+    InsertNote,
     InsertNotification,
-    InsertCal,
+    InsertProject,
+    SelectAllProjectInfo,
+    SelectCurrentTask,
+    SelectCurrentTaskFor,
+    SelectEndingTask,
+    SelectLatestTaskFor,
+    SelectNotes,
+    SelectProject,
+    SelectProjectDetail,
+    SelectProjectInfo,
+    SelectUser,
     UpdateCompleted,
     UpdateDeadline,
     UpdateProvision,
     UpdateTaskEnd,
-    SelectAllProjectInfo,
-    SelectCurrentTask,
-    SelectCurrentTaskFor,
-    SelectLatestTaskFor,
-    SelectEndingTask,
-    SelectProjectInfo,
-    SelectProject,
-    SelectProjectDetail,
-    SelectUser,
-    SelectCal,
 }
 
 fn sql(name: Name) -> &'static str {
     match name {
         Name::InsertDo => include_str!("sql/insert_do.sql"),
-        Name::InsertProject => include_str!("sql/insert_project.sql"),
+        Name::InsertNote => include_str!("sql/insert_note.sql"),
         Name::InsertNotification => include_str!("sql/insert_notification.sql"),
-        Name::InsertCal => include_str!("sql/insert_cal.sql"),
+        Name::InsertProject => include_str!("sql/insert_project.sql"),
         Name::SelectAllProjectInfo => include_str!("sql/select_all_project_info.sql"),
         Name::SelectCurrentTask => include_str!("sql/select_current_task.sql"),
         Name::SelectCurrentTaskFor => include_str!("sql/select_current_task_for.sql"),
-        Name::SelectLatestTaskFor => include_str!("sql/select_latest_task_for.sql"),
         Name::SelectEndingTask => include_str!("sql/select_ending_task.sql"),
-        Name::UpdateTaskEnd => include_str!("sql/update_task_end.sql"),
+        Name::SelectLatestTaskFor => include_str!("sql/select_latest_task_for.sql"),
+        Name::SelectNotes => include_str!("sql/select_notes.sql"),
         Name::SelectProject => include_str!("sql/select_project.sql"),
         Name::SelectProjectDetail => include_str!("sql/select_project_detail.sql"),
         Name::SelectProjectInfo => include_str!("sql/select_project_info.sql"),
         Name::SelectUser => include_str!("sql/select_user.sql"),
-        Name::SelectCal => include_str!("sql/select_cal.sql"),
+        Name::UpdateCompleted => include_str!("sql/update_completed.sql"),
         Name::UpdateDeadline => include_str!("sql/update_deadline.sql"),
         Name::UpdateProvision => include_str!("sql/update_provision.sql"),
-        Name::UpdateCompleted => include_str!("sql/update_completed.sql"),
+        Name::UpdateTaskEnd => include_str!("sql/update_task_end.sql"),
     }
 }
-
-// macro_rules! migrate_versions {
-//     ($($v:tt),*) => {
-//         match user_version {
-//             $(
-//                 ($v - 1) => {
-//                     conn.execute_batch(include_str!(concat!("sql/migrations/",stringify!($v), ".sql")))
-//                         .expect("Failed migration: 001.sql");
-//                     migrate(conn);
-//                 }
-//             )
-//         _ => println!("Migrate completed, we're at version {}", user_version),
-//         }
-//     }
-// }
-
-// fn migrate(conn: &Connection) {
-//     let user_version = conn.query_row(
-//         "SELECT user_version  FROM pragma_user_version();",
-//         NO_PARAMS,
-//         |row| row.get::<usize, i64>(0),
-//     ).expect("Could not get user_version from the database, \nmeans we can't process DB version check and migrations. \nAborting");
-//     migrate_versions!(001, 002);
-// }
 
 fn migrate(conn: &Connection) {
     let user_version = conn.query_row(
@@ -209,12 +187,20 @@ fn migrate(conn: &Connection) {
             println!("Applied sql/migrations/002.sql");
             migrate(conn);
         }
+        2 => {
+            conn.execute_batch(include_str!("sql/migrations/003.sql"))
+                .expect("Failed migration: 003.sql");
+            println!("Applied sql/migrations/003.sql");
+            migrate(conn);
+        }
         _ => println!("Migrate completed, we're at version {}", user_version),
     };
 }
 
+pub type StoreResult<T> = Result<T, StoreError>;
+
 impl Store {
-    pub fn new(path: &Path) -> Result<Store, StoreError> {
+    pub fn new(path: &Path) -> StoreResult<Store> {
         match Connection::open(path) {
             Ok(conn) => {
                 conn.execute("PRAGMA foreign_keys = ON;", NO_PARAMS)
@@ -243,7 +229,7 @@ impl Store {
         Path::new(&self.path)
     }
 
-    fn exec(&self, name: Name, params: &[(&str, &dyn ToSql)]) -> Result<usize, StoreError> {
+    fn exec(&self, name: Name, params: &[(&str, &dyn ToSql)]) -> StoreResult<usize> {
         match self.conn.execute_named(sql(name), params) {
             Ok(s) => Ok(s),
             Err(err) => {
@@ -252,12 +238,7 @@ impl Store {
             }
         }
     }
-    fn map_rows<F, T>(
-        &self,
-        name: Name,
-        params: &[(&str, &dyn ToSql)],
-        f: F,
-    ) -> Result<Vec<T>, StoreError>
+    fn map_rows<F, T>(&self, name: Name, params: &[(&str, &dyn ToSql)], f: F) -> StoreResult<Vec<T>>
     where
         F: FnMut(&Row) -> SqlResult<T>,
     {
@@ -271,7 +252,15 @@ impl Store {
                     println!("SQLite error: {}", err);
                     Err(StoreError::Iter)
                 }
-                Ok(rows) => Ok(rows.filter_map(|row| row.ok()).collect()),
+                Ok(rows) => Ok(rows
+                    .filter_map(|row| match row {
+                        Err(err) => {
+                            println!("Row Error: {}", err);
+                            None
+                        }
+                        Ok(_) => row.ok(),
+                    })
+                    .collect()),
             },
         }
     }
@@ -283,7 +272,7 @@ impl Store {
         end: time::SystemTime,
         project: String,
         task: String,
-    ) -> Result<usize, StoreError> {
+    ) -> StoreResult<usize> {
         self.exec(
             Name::InsertDo,
             named_params! {
@@ -301,7 +290,7 @@ impl Store {
         username: String,
         name: String,
         start: time::SystemTime,
-    ) -> Result<usize, StoreError> {
+    ) -> StoreResult<usize> {
         self.exec(
             Name::InsertProject,
             named_params! {
@@ -311,12 +300,24 @@ impl Store {
             },
         )
     }
-
-    pub fn update_deadline(
+    pub fn insert_note(
         &mut self,
-        name: String,
-        end: time::SystemTime,
-    ) -> Result<usize, StoreError> {
+        project: String,
+        username: String,
+        content: String,
+    ) -> StoreResult<usize> {
+        self.exec(
+            Name::InsertNote,
+            named_params! {
+                ":project": project.clone(),
+                ":username": username.clone(),
+                ":created_at": ts(&time::SystemTime::now()),
+                ":content": content.clone(),
+            },
+        )
+    }
+
+    pub fn update_deadline(&mut self, name: String, end: time::SystemTime) -> StoreResult<usize> {
         self.exec(
             Name::UpdateDeadline,
             named_params! {
@@ -330,7 +331,7 @@ impl Store {
         &mut self,
         name: String,
         completed: time::SystemTime,
-    ) -> Result<usize, StoreError> {
+    ) -> StoreResult<usize> {
         self.exec(
             Name::UpdateCompleted,
             named_params! {
@@ -344,7 +345,7 @@ impl Store {
         &mut self,
         name: String,
         provision: time::Duration,
-    ) -> Result<usize, StoreError> {
+    ) -> StoreResult<usize> {
         self.exec(
             Name::UpdateProvision,
             named_params! {
@@ -354,11 +355,7 @@ impl Store {
         )
     }
 
-    pub fn insert_notification(
-        &mut self,
-        tid: i64,
-        end: time::SystemTime,
-    ) -> Result<usize, StoreError> {
+    pub fn insert_notification(&mut self, tid: i64, end: time::SystemTime) -> StoreResult<usize> {
         self.exec(
             Name::InsertNotification,
             named_params! {
@@ -368,22 +365,7 @@ impl Store {
         )
     }
 
-    pub fn insert_cal(&mut self, content: String) -> Result<String, StoreError> {
-        let uuid = Uuid::new_v4().to_simple().to_string();
-        match self.exec(
-            Name::InsertCal,
-            named_params! {
-                ":uuid": uuid,
-                ":ts":  ts(&time::SystemTime::now()),
-                ":content":  content,
-            },
-        ) {
-            Err(e) => Err(e),
-            Ok(_) => Ok(uuid),
-        }
-    }
-
-    pub fn select_current_task(&self) -> Result<Vec<TaskRecord>, StoreError> {
+    pub fn select_current_task(&self) -> StoreResult<Vec<TaskRecord>> {
         let now = time::SystemTime::now();
         self.map_rows(
             Name::SelectCurrentTask,
@@ -394,7 +376,7 @@ impl Store {
         )
     }
 
-    pub fn select_current_task_for(&self, user: String) -> Result<Vec<TaskRecord>, StoreError> {
+    pub fn select_current_task_for(&self, user: String) -> StoreResult<Vec<TaskRecord>> {
         let now = time::SystemTime::now();
         self.map_rows(
             Name::SelectCurrentTaskFor,
@@ -406,7 +388,7 @@ impl Store {
         )
     }
 
-    pub fn select_latest_task_for(&self, user: String) -> Result<Vec<TaskRecord>, StoreError> {
+    pub fn select_latest_task_for(&self, user: String) -> StoreResult<Vec<TaskRecord>> {
         self.map_rows(
             Name::SelectLatestTaskFor,
             named_params! {
@@ -416,7 +398,7 @@ impl Store {
         )
     }
 
-    pub fn select_all_project_info(&self) -> Result<Vec<ProjectRecord>, StoreError> {
+    pub fn select_all_project_info(&self) -> StoreResult<Vec<ProjectRecord>> {
         self.map_rows(
             Name::SelectAllProjectInfo,
             named_params! {},
@@ -424,7 +406,7 @@ impl Store {
         )
     }
 
-    pub fn select_project_info(&self, project: String) -> Result<Vec<ProjectRecord>, StoreError> {
+    pub fn select_project_info(&self, project: String) -> StoreResult<Vec<ProjectRecord>> {
         self.map_rows(
             Name::SelectProjectInfo,
             named_params! {
@@ -434,7 +416,7 @@ impl Store {
         )
     }
 
-    pub fn select_project(&self, project: String) -> Result<Vec<AggregatedTaskRecord>, StoreError> {
+    pub fn select_project(&self, project: String) -> StoreResult<Vec<AggregatedTaskRecord>> {
         self.map_rows(
             Name::SelectProject,
             named_params! {
@@ -444,7 +426,7 @@ impl Store {
         )
     }
 
-    pub fn select_project_detail(&self, project: String) -> Result<Vec<TaskRecord>, StoreError> {
+    pub fn select_project_detail(&self, project: String) -> StoreResult<Vec<TaskRecord>> {
         self.map_rows(
             Name::SelectProjectDetail,
             named_params! {
@@ -454,11 +436,21 @@ impl Store {
         )
     }
 
+    pub fn select_notes(&self, project: String) -> StoreResult<Vec<NoteRecord>> {
+        self.map_rows(
+            Name::SelectNotes,
+            named_params! {
+                ":project": project.clone(),
+            },
+            NoteRecord::from_row,
+        )
+    }
+
     pub fn select_user(
         &self,
         user: String,
         since: time::SystemTime,
-    ) -> Result<Vec<AggregatedTaskRecord>, StoreError> {
+    ) -> StoreResult<Vec<AggregatedTaskRecord>> {
         self.map_rows(
             Name::SelectUser,
             named_params! {
@@ -469,7 +461,7 @@ impl Store {
         )
     }
 
-    pub fn update_task_end(&self, id: i64, end: time::SystemTime) -> Result<usize, StoreError> {
+    pub fn update_task_end(&self, id: i64, end: time::SystemTime) -> StoreResult<usize> {
         self.exec(
             Name::UpdateTaskEnd,
             named_params! {
@@ -479,7 +471,7 @@ impl Store {
         )
     }
 
-    pub fn select_ending_tasks(&self) -> Result<Vec<TaskRecord>, StoreError> {
+    pub fn select_ending_tasks(&self) -> StoreResult<Vec<TaskRecord>> {
         self.map_rows(
             Name::SelectEndingTask,
             named_params! {
@@ -487,19 +479,5 @@ impl Store {
             },
             TaskRecord::from_row,
         )
-    }
-
-    pub fn select_cal(&self, uuid: String) -> Result<CalRecord, StoreError> {
-        self.map_rows(
-            Name::SelectCal,
-            named_params! {
-                ":uuid": uuid,
-            },
-            CalRecord::from_row,
-        )
-        .and_then(|cals| match cals.first() {
-            Some(c) => Ok(c.clone()),
-            None => Err(StoreError::Iter),
-        })
     }
 }

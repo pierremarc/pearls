@@ -264,6 +264,10 @@ where
     }
 }
 
+pub fn no_display() -> Element {
+    Element::new("span").set("style", "display:none")
+}
+
 macro_rules! known {
     ($tag:ident, $f:ident) => {
         pub fn $f<C>(c: C) -> Element
@@ -304,6 +308,8 @@ known!(ul);
 known!(ol);
 known!(li);
 known!(p, paragraph);
+known!(details);
+known!(summary);
 
 pub fn with_doctype(e: Element) -> String {
     format!("<!DOCTYPE html>\n{}", e.as_string())

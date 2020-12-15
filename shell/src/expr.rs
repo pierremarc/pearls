@@ -24,22 +24,24 @@ pub enum Command {
     Deadline(String, time::SystemTime),
     Provision(String, time::Duration),
     Complete(String, time::SystemTime),
+    Note(String, String),
 }
-pub enum CommandName {
-    Ping,
-    Add,
-    Do,
-    Done,
-    Switch,
-    Stop,
-    More,
-    List,
-    Digest,
-    Since,
-    Deadline,
-    Provision,
-    Complete,
-}
+// pub enum CommandName {
+//     Ping,
+//     Add,
+//     Do,
+//     Done,
+//     Switch,
+//     Stop,
+//     More,
+//     List,
+//     Digest,
+//     Since,
+//     Deadline,
+//     Provision,
+//     Complete,
+//     Note,
+// }
 
 // #[derive(Debug)]
 // struct ParseCommandError;
@@ -275,6 +277,15 @@ fn complete<'a>() -> CommandParser<'a> {
     .name("complete")
 }
 
+fn note<'a>() -> CommandParser<'a> {
+    let cn = seq(b"!note") - space();
+    let id = project_ident() - space();
+    let content = string();
+    let all = cn + id + content;
+    all.map(|((_, project_name), c)| Command::Note(project_name, c))
+        .name("note")
+}
+
 fn command<'a>() -> CommandParser<'a> {
     {
         ping()
@@ -290,6 +301,7 @@ fn command<'a>() -> CommandParser<'a> {
             | deadline()
             | provision()
             | complete()
+            | note()
     }
     .name("command")
         - trailing_space()

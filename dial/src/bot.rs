@@ -72,6 +72,7 @@ impl CommandHandler {
                     Command::Deadline(project, end) => make::deadline(self, project, end),
                     Command::Provision(project, d) => make::provision(self, project, d),
                     Command::Complete(project, end) => make::complete(self, project, end),
+                    Command::Note(project, content) => make::note(self, u, project, content),
                 }
             }
             Err(err) => {

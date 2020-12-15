@@ -18,10 +18,12 @@ fn make_text(handler: &mut bot::CommandHandler) -> String {
             {}
         !provision <project-name> <duration>
             set provisioned time for an existing project
-        !complete <date?> 
+        !complete  <project-name> <date?> 
             set completion date for an existing project, if
             date is not provided, it will take the current time instead.
             {}
+        !note <project-name> <text>
+            add a note to a project, free text.
         !do <project-name> <task-name> <duration>
             start a new task that will last for <duration>
         !done <project-name> <task-name> <duration>
@@ -62,12 +64,16 @@ fn make_html(handler: &mut bot::CommandHandler) -> String {
             em("duration"),
         ]),
         paragraph("set provisioned time for an existing project"),
-        h4(vec![span("!complete   "), em("date?")]),
+        h4(vec![span("!complete   "), em("project-name "), em("date?")]),
         paragraph(
             "set completion date for an existing project, if
             date is not provided, it will take the current time instead.",
         ),
         paragraph(DATE_HELP),
+        h4(vec![span("!note   "),  em("project-name "), em("text")]),
+        paragraph(
+            "add a note to a project, free text.",
+        ),
         h4(vec![
             span("!do  "),
             em("project-name "),

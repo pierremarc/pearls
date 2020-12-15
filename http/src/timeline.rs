@@ -1,6 +1,9 @@
-use html::{anchor, body, div, em, h1, h2, head, html, span, style, with_doctype, Element, Empty};
+use html::{
+    anchor, body, details, div, em, h1, h2, head, html, no_display, paragraph, span, style,
+    summary, with_doctype, Element, Empty,
+};
 use shell::{
-    store::{AggregatedTaskRecord, ProjectRecord, StoreError},
+    store::{AggregatedTaskRecord, NoteRecord, ProjectRecord, StoreError},
     util::date_time_from_st,
 };
 use std::{
@@ -12,7 +15,7 @@ use warp::Filter;
 
 use crate::{with_base_path, with_store, ArcStore};
 
-type TimelineProject = (ProjectRecord, std::time::Duration);
+type TimelineProject = (ProjectRecord, std::time::Duration, Vec<NoteRecord>);
 
 fn cmp_by_deadline(a: &TimelineProject, b: &TimelineProject) -> Ordering {
     match (a.0.end_time, b.0.end_time) {
@@ -68,6 +71,7 @@ fn to_hour(d: Duration) -> u128 {
     let m2 = m + 500;
     m2 / 1000
 }
+
 fn format_hour(d: Duration) -> String {
     format!("{}h", to_hour(d))
 }
@@ -153,6 +157,28 @@ fn project_title(name: &str, base_path: String, opt_completed: Option<SystemTime
     }
 }
 
+fn make_notes(notes: &Vec<NoteRecord>) -> Element {
+    match notes.len() {
+        0 => no_display(),
+        _ => details([
+            summary("notes"),
+            div(notes
+                .iter()
+                .map(|note| {
+                    div([
+                        div(shell::util::st_to_datestring(&note.created_at)).class("note-date"),
+                        div(shell::util::display_username(note.username.clone()))
+                            .class("note-user"),
+                        paragraph(note.content.clone()).class("note-content"),
+                    ])
+                    .class("note")
+                })
+                .collect::<Vec<_>>()),
+        ])
+        .class("notes"),
+    }
+}
+
 fn make_full(
     name: &str,
     base_path: String,
@@ -160,6 +186,7 @@ fn make_full(
     provision: &Duration,
     done: &Duration,
     opt_completed: Option<SystemTime>,
+    notes: &Vec<NoteRecord>,
 ) -> Element {
     div([
         make_gauge(provision, done),
@@ -169,6 +196,7 @@ fn make_full(
             remaining(*provision, *done),
             kv("Provisioned:", &format_hour(*provision)),
             kv("Done:", &format_hour(*done)),
+            make_notes(notes),
         ])
         .class("project-info"),
     ])
@@ -181,6 +209,7 @@ fn make_with_provision(
     provision: &Duration,
     done: &Duration,
     opt_completed: Option<SystemTime>,
+    notes: &Vec<NoteRecord>,
 ) -> Element {
     div([
         make_gauge(provision, done),
@@ -189,6 +218,7 @@ fn make_with_provision(
             remaining(*provision, *done),
             kv("Provisioned:", &format_hour(*provision)),
             kv("Done:", &format_hour(*done)),
+            make_notes(notes),
         ])
         .class("project-info"),
     ])
@@ -201,6 +231,7 @@ fn make_with_end(
     end: &SystemTime,
     done: &Duration,
     opt_completed: Option<SystemTime>,
+    notes: &Vec<NoteRecord>,
 ) -> Element {
     div([
         make_gauge(done, done),
@@ -208,6 +239,7 @@ fn make_with_end(
             project_title(name, base_path, opt_completed),
             deadline(end),
             kv("Done:", &format_hour(*done)),
+            make_notes(notes),
         ])
         .class("project-info"),
     ])
@@ -219,12 +251,14 @@ fn make_bare(
     base_path: String,
     done: &Duration,
     opt_completed: Option<SystemTime>,
+    notes: &Vec<NoteRecord>,
 ) -> Element {
     div([
         make_gauge(done, done),
         div([
             project_title(name, base_path, opt_completed),
             kv("Done:", &format_hour(*done)),
+            make_notes(notes),
         ])
         .class("project-info"),
     ])
@@ -250,7 +284,14 @@ fn get_projects(s: ArcStore) -> Result<Vec<TimelineProject>, StoreError> {
                 } else {
                     let tasks = store.select_project(record.name.clone());
                     let done = tasks.map(get_done);
-                    Some((record.clone(), done.unwrap_or(Duration::from_secs(0))))
+                    let notes = store
+                        .select_notes(record.name.clone())
+                        .unwrap_or(Vec::new());
+                    Some((
+                        record.clone(),
+                        done.unwrap_or(Duration::from_secs(0)),
+                        notes,
+                    ))
                 }
             })
             .collect();
@@ -260,7 +301,14 @@ fn get_projects(s: ArcStore) -> Result<Vec<TimelineProject>, StoreError> {
                 record.completed.map(|_| {
                     let tasks = store.select_project(record.name.clone());
                     let done = tasks.map(get_done);
-                    (record.clone(), done.unwrap_or(Duration::from_secs(0)))
+                    let notes = store
+                        .select_notes(record.name.clone())
+                        .unwrap_or(Vec::new());
+                    (
+                        record.clone(),
+                        done.unwrap_or(Duration::from_secs(0)),
+                        notes,
+                    )
                 })
             })
             .collect();
@@ -285,7 +333,7 @@ async fn timeline_handler(s: ArcStore, base_path: String) -> Result<impl warp::R
         Ok(projects) => {
             let elements: Vec<Element> = projects
                 .iter()
-                .map(|(p, done)| match (p.end_time, p.provision) {
+                .map(|(p, done, notes)| match (p.end_time, p.provision) {
                     (Some(end), Some(provision)) => make_full(
                         &p.name,
                         base_path.clone(),
@@ -293,6 +341,7 @@ async fn timeline_handler(s: ArcStore, base_path: String) -> Result<impl warp::R
                         &provision,
                         done,
                         p.completed,
+                        notes,
                     ),
                     (None, Some(provision)) => make_with_provision(
                         &p.name,
@@ -300,11 +349,12 @@ async fn timeline_handler(s: ArcStore, base_path: String) -> Result<impl warp::R
                         &provision,
                         done,
                         p.completed,
+                        notes,
                     ),
                     (Some(end), None) => {
-                        make_with_end(&p.name, base_path.clone(), &end, done, p.completed)
+                        make_with_end(&p.name, base_path.clone(), &end, done, p.completed, notes)
                     }
-                    (None, None) => make_bare(&p.name, base_path.clone(), done, p.completed),
+                    (None, None) => make_bare(&p.name, base_path.clone(), done, p.completed, notes),
                 })
                 .collect();
 
