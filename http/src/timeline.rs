@@ -15,50 +15,20 @@ use crate::{with_base_path, with_store, ArcStore};
 type TimelineProject = (ProjectRecord, std::time::Duration);
 
 fn cmp_by_deadline(a: &TimelineProject, b: &TimelineProject) -> Ordering {
-    if a.0.end_time.is_some() & b.0.end_time.is_none() {
-        return Ordering::Less;
-    }
-    if a.0.end_time.is_none() & b.0.end_time.is_some() {
-        return Ordering::Greater;
-    }
-    let now = std::time::SystemTime::now();
-    let a_remaining =
-        a.0.end_time
-            .and_then(|t| now.duration_since(t).ok())
-            .unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1));
-    let b_remaining =
-        b.0.end_time
-            .and_then(|t| now.duration_since(t).ok())
-            .unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1));
-
-    if a_remaining == b_remaining {
-        a.0.id.cmp(&b.0.id)
-    } else {
-        a_remaining.cmp(&b_remaining)
+    match (a.0.end_time, b.0.end_time) {
+        (None, None) => Ordering::Equal,
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (Some(a), Some(b)) => a.cmp(&b),
     }
 }
 
 fn cmp_by_completion(a: &TimelineProject, b: &TimelineProject) -> Ordering {
-    if a.0.completed.is_some() & b.0.completed.is_none() {
-        return Ordering::Less;
-    }
-    if a.0.completed.is_none() & b.0.completed.is_some() {
-        return Ordering::Greater;
-    }
-
-    let a_elapsed =
-        a.0.completed
-            .and_then(|t| t.elapsed().ok())
-            .unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1));
-    let b_elapsed =
-        b.0.completed
-            .and_then(|t| t.elapsed().ok())
-            .unwrap_or(Duration::new(u64::MAX, 1_000_000_000 - 1));
-
-    if a_elapsed == b_elapsed {
-        a.0.id.cmp(&b.0.id)
-    } else {
-        a_elapsed.cmp(&b_elapsed)
+    match (a.0.completed, b.0.completed) {
+        (None, None) => Ordering::Equal,
+        (Some(_), None) => Ordering::Greater,
+        (None, Some(_)) => Ordering::Less,
+        (Some(a), Some(b)) => b.cmp(&a),
     }
 }
 
@@ -82,6 +52,14 @@ fn remaining(provision: Duration, done: Duration) -> Element {
         kv("Overtime: ", span(format_hour(done - provision))).add_class("overtime")
     } else {
         kv("Remaining:", span(format_hour(provision - done))).add_class("remaining")
+    }
+}
+fn deadline(end: &SystemTime) -> Element {
+    let now = SystemTime::now();
+    if *end < now {
+        kv("Deadline:", &format_date(end)).add_class("not-in-time")
+    } else {
+        kv("Deadline:", &format_date(end))
     }
 }
 
@@ -187,7 +165,7 @@ fn make_full(
         make_gauge(provision, done),
         div([
             project_title(name, base_path, opt_completed),
-            kv("Deadline:", &format_date(end)),
+            deadline(end),
             remaining(*provision, *done),
             kv("Provisioned:", &format_hour(*provision)),
             kv("Done:", &format_hour(*done)),
@@ -228,7 +206,7 @@ fn make_with_end(
         make_gauge(done, done),
         div([
             project_title(name, base_path, opt_completed),
-            kv("Deadline:", &format_date(end)),
+            deadline(end),
             kv("Done:", &format_hour(*done)),
         ])
         .class("project-info"),
