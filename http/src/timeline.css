@@ -22,7 +22,7 @@ h1 {
     display: flex;
     padding: 1rem 2rem;
     width: 100%;
-    max-width: 30rem;
+    max-width: 32rem;
     justify-content: flex-end;
 }
 

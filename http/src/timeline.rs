@@ -34,7 +34,7 @@ fn cmp_by_completion(a: &TimelineProject, b: &TimelineProject) -> Ordering {
 
 fn format_date(t: &SystemTime) -> String {
     let dt = date_time_from_st(t);
-    dt.format("%F").to_string()
+    dt.format("%e %B %Y").to_string()
 }
 
 fn kv<K, V>(k: K, v: V) -> Element
