@@ -360,7 +360,7 @@ async fn timeline_handler(s: ArcStore, base_path: String) -> Result<impl warp::R
 
             Ok(warp::reply::html(with_doctype(html([
                 head(css),
-                body([h1("Timeline"), div(elements).class("projects")]),
+                body(div(elements).class("projects")),
             ]))))
         }
     }
