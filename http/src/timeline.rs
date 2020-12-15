@@ -104,6 +104,29 @@ fn round_div(a: u64, b: u64) -> u64 {
     }
 }
 
+const LOW: u64 = 50;
+const MEDIUM: u64 = 250;
+const HIGH: u64 = 1000;
+
+enum ProjectSize {
+    Small,
+    Medium,
+    Large,
+    Huge,
+}
+
+fn get_size(n: u64) -> ProjectSize {
+    if n < LOW {
+        return ProjectSize::Small;
+    } else if n < MEDIUM {
+        return ProjectSize::Medium;
+    } else if n < HIGH {
+        return ProjectSize::Large;
+    } else {
+        return ProjectSize::Huge;
+    }
+}
+
 fn make_gauge(provision: &Duration, done: &Duration) -> Element {
     let p = provision.as_secs() + 1;
     let d = done.as_secs() + 1;
@@ -111,6 +134,13 @@ fn make_gauge(provision: &Duration, done: &Duration) -> Element {
         (round_div(p * 100, d), 0, round_div((d - p) * 100, d))
     } else {
         (round_div(d * 100, p), round_div((p - d) * 100, p), 0)
+    };
+
+    let class_name = match get_size(p / 3600) {
+        ProjectSize::Small => "project-gauge small",
+        ProjectSize::Medium => "project-gauge medium",
+        ProjectSize::Large => "project-gauge large",
+        ProjectSize::Huge => "project-gauge huge",
     };
 
     div([
@@ -124,7 +154,7 @@ fn make_gauge(provision: &Duration, done: &Duration) -> Element {
             .class("time-done")
             .set("style", format!("height:{}%;", done_percent)),
     ])
-    .class("project-gauge")
+    .class(class_name)
 }
 
 fn wrapper_class(opt_completed: Option<SystemTime>) -> String {
@@ -140,7 +170,7 @@ fn project_title(name: &str, base_path: String, opt_completed: Option<SystemTime
         Some(t) => h2([
             em(shell::util::st_to_datestring(&t)),
             span(" "),
-            anchor(name).set("href", format!("{}{}", base_path, name)),
+            anchor(name).set("href", format!("{}calendar/{}", base_path, name)),
         ]),
     }
 }
@@ -161,7 +191,8 @@ fn make_full(
             remaining(*provision, *done),
             kv("Provisioned:", &format_hour(*provision)),
             kv("Done:", &format_hour(*done)),
-        ]),
+        ])
+        .class("project-info"),
     ])
     .class(wrapper_class(opt_completed))
 }
@@ -180,7 +211,8 @@ fn make_with_provision(
             remaining(*provision, *done),
             kv("Provisioned:", &format_hour(*provision)),
             kv("Done:", &format_hour(*done)),
-        ]),
+        ])
+        .class("project-info"),
     ])
     .class(wrapper_class(opt_completed))
 }
@@ -198,7 +230,8 @@ fn make_with_end(
             project_title(name, base_path, opt_completed),
             kv("Deadline:", &format_date(end)),
             kv("Done:", &format_hour(*done)),
-        ]),
+        ])
+        .class("project-info"),
     ])
     .class(wrapper_class(opt_completed))
 }
@@ -214,7 +247,8 @@ fn make_bare(
         div([
             project_title(name, base_path, opt_completed),
             kv("Done:", &format_hour(*done)),
-        ]),
+        ])
+        .class("project-info"),
     ])
     .class(wrapper_class(opt_completed))
 }

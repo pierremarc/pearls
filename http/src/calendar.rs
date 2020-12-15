@@ -92,55 +92,58 @@ fn cal_project(recs: &Vec<TaskRecord>) -> Element {
 }
 
 fn cal(store: ArcStore, project: String) -> Option<String> {
-    let store = store.lock().expect("oops");
-    let available = store
-        .select_project_info(project.clone())
-        .unwrap_or(Vec::new())
-        .first()
-        .map(|rec| rec.provision.map_or(0, |d| dur(&d)) / (1000 * 60 * 60))
-        .unwrap_or(0);
+    if let Ok(store) = store.lock() {
+        let available = store
+            .select_project_info(project.clone())
+            .unwrap_or(Vec::new())
+            .first()
+            .map(|rec| rec.provision.map_or(0, |d| dur(&d)) / (1000 * 60 * 60))
+            .unwrap_or(0);
 
-    match store.select_project_detail(project.clone()) {
-        Ok(ref recs) => {
-            let names = recs
-                .iter()
-                .fold(HashSet::<String>::new(), |mut acc, rec| {
-                    acc.insert(rec.project.clone());
-                    acc
-                })
-                .into_iter()
-                .collect::<Vec<String>>()
-                .join(", ");
+        match store.select_project_detail(project.clone()) {
+            Ok(ref recs) => {
+                let names = recs
+                    .iter()
+                    .fold(HashSet::<String>::new(), |mut acc, rec| {
+                        acc.insert(rec.project.clone());
+                        acc
+                    })
+                    .into_iter()
+                    .collect::<Vec<String>>()
+                    .join(", ");
 
-            let done = recs.iter().fold(0, |acc, rec| {
-                acc + dur(&rec
-                    .end_time
-                    .duration_since(rec.start_time)
-                    .unwrap_or(time::Duration::from_secs(0)))
-            }) / (1000 * 60 * 60);
+                let done = recs.iter().fold(0, |acc, rec| {
+                    acc + dur(&rec
+                        .end_time
+                        .duration_since(rec.start_time)
+                        .unwrap_or(time::Duration::from_secs(0)))
+                }) / (1000 * 60 * 60);
 
-            let cal_element = cal_project(recs);
-            let title = h1(names);
-            let subtitle = div(vec![
-                div(vec![
-                    span(string("Done: ")),
-                    span(format!("{} hours", done)),
-                ]),
-                div(vec![
-                    span(string("Avail: ")),
-                    span(format!("{} hours", available)),
-                ]),
-            ])
-            .set("class", "summary");
-            let css = style(String::from(include_str!("cal.css"))).set("type", "text/css");
-            let html_string = with_doctype(html(vec![
-                head(css),
-                body(vec![title, subtitle, cal_element]),
-            ]));
+                let cal_element = cal_project(recs);
+                let title = h1(names);
+                let subtitle = div(vec![
+                    div(vec![
+                        span(string("Done: ")),
+                        span(format!("{} hours", done)),
+                    ]),
+                    div(vec![
+                        span(string("Avail: ")),
+                        span(format!("{} hours", available)),
+                    ]),
+                ])
+                .set("class", "summary");
+                let css = style(String::from(include_str!("cal.css"))).set("type", "text/css");
+                let html_string = with_doctype(html(vec![
+                    head(css),
+                    body(vec![title, subtitle, cal_element]),
+                ]));
 
-            Some(html_string)
+                Some(html_string)
+            }
+            Err(err) => Some(format!("Store Error: {}", err)),
         }
-        Err(_) => None,
+    } else {
+        Some("Could Not Acquire A Lock On Store".into())
     }
 }
 
