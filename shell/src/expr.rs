@@ -1,17 +1,22 @@
-use crate::chrono::Datelike;
-use crate::chrono::TimeZone;
-use chrono::offset::Utc;
+use chrono::Datelike;
+use chrono::TimeZone;
+use chrono::{offset::Utc, LocalResult};
 use humantime;
 use pom::parser::{end, is_a, one_of, seq, sym, Parser};
-use pom::Error;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::time;
 
+use crate::parser_ext::{
+    ctx_command, err_date_format, err_duration_format, err_ident, err_project_ident, new_context,
+    with_error, with_success, ParseCommandError, SharedContext,
+};
+
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub enum Command {
     Ping,
+    Help,
     Add(String),
     Do(String, String, time::Duration),
     Done(String, String, time::Duration),
@@ -42,17 +47,6 @@ pub enum Command {
 //     Complete,
 //     Note,
 // }
-
-// #[derive(Debug)]
-// struct ParseCommandError;
-
-// impl fmt::Display for ParseCommandError {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         write!(f, "Command does not exists")
-//     }
-// }
-
-// impl Error for ParseCommandError {}
 
 fn space<'a>() -> Parser<'a, u8, ()> {
     one_of(b" \t").repeat(1..).discard()
@@ -99,18 +93,21 @@ fn fixed_int<'a>(i: usize) -> Parser<'a, u8, u32> {
         })
 }
 
-fn ident<'a>() -> Parser<'a, u8, String> {
-    let char_string = (letter() | digit() | one_of(b"_-")).repeat(1..);
-    char_string.convert(|chars| String::from_utf8(chars))
+fn ident<'a>(ctx: SharedContext) -> Parser<'a, u8, String> {
+    let char_string = (letter() | digit() | one_of(b"_-.")).repeat(1..);
+    with_error(
+        char_string.convert(|chars| String::from_utf8(chars)),
+        move || err_ident(ctx.clone()),
+    )
 }
 
-fn project_ident<'a>() -> Parser<'a, u8, String> {
-    let client = ident();
+fn project_ident<'a>(ctx: SharedContext) -> Parser<'a, u8, String> {
+    let client = ident(ctx.clone());
     let sep = sym(b'/');
-    let name = ident();
+    let name = ident(ctx.clone());
     let all = client - sep + name;
-    all.map(|(client, name)| format!("{}/{}", client, name))
-        .name("Project identifier")
+    with_error(all, move || err_project_ident(ctx.clone()))
+        .map(|(client, name)| format!("{}/{}", client, name))
 }
 
 // fn duration_() -> Parser<u8, time::Duration> {
@@ -120,7 +117,7 @@ fn project_ident<'a>() -> Parser<'a, u8, String> {
 //     })
 // }
 
-fn duration<'a>() -> Parser<'a, u8, time::Duration> {
+fn duration<'a>(ctx: SharedContext) -> Parser<'a, u8, time::Duration> {
     let string_parser = string();
     Parser::new(
         move |input: &[u8], start: usize| match string_parser.parse(&input[start..]) {
@@ -128,7 +125,7 @@ fn duration<'a>() -> Parser<'a, u8, time::Duration> {
             Ok(s) => match humantime::parse_duration(&s) {
                 Ok(d) => Ok((d, start + s.len())),
                 Err(err) => {
-                    println!("err({}) {}", s, err);
+                    err_duration_format(ctx.clone());
                     Err(pom::Error::Custom {
                         message: format!("HumanTimeError {}", err),
                         position: start,
@@ -140,11 +137,12 @@ fn duration<'a>() -> Parser<'a, u8, time::Duration> {
     )
 }
 
-fn st_from_ts(ts: i64) -> time::SystemTime {
-    time::SystemTime::UNIX_EPOCH + time::Duration::from_millis(ts.try_into().unwrap())
+fn st_from_ts(ts: i64) -> Result<time::SystemTime, impl std::error::Error> {
+    ts.try_into()
+        .map(|x| time::SystemTime::UNIX_EPOCH + time::Duration::from_millis(x))
 }
 
-fn date<'a>() -> Parser<'a, u8, time::SystemTime> {
+fn date<'a>(ctx: SharedContext) -> Parser<'a, u8, time::SystemTime> {
     let sep = || one_of(b" -./");
     // YYYY-MM-DD
     let format1 = (fixed_int(4) - sep()) + (fixed_int(2) - sep()) + fixed_int(2);
@@ -152,123 +150,163 @@ fn date<'a>() -> Parser<'a, u8, time::SystemTime> {
     // DD-MM[-YYYY]
     let format2 = (fixed_int(2) - sep()) + fixed_int(2) + (sep() + fixed_int(4)).opt();
 
-    let mapped1 = format1.map(|((y, m), d)| {
-        st_from_ts(
-            Utc.ymd(i32::try_from(y).unwrap_or(i32::max_value()), m, d)
-                .and_hms(0, 1, 1)
-                .timestamp_millis(),
-        )
+    let mapped1 = format1.convert(|((y, m), d)| {
+        let year = i32::try_from(y).map_err(|_| ParseCommandError::DateFormat)?;
+        match Utc.ymd_opt(year, m, d) {
+            LocalResult::Single(d) => st_from_ts(d.and_hms(0, 1, 1).timestamp_millis())
+                .map_err(|_| ParseCommandError::DateFormat),
+            _ => Err(ParseCommandError::DateFormat),
+        }
     });
 
-    let mapped2 = format2.map(|((d, m), opt_y)| {
-        let y: i32 = opt_y
-            .map(|(_, y)| i32::try_from(y).unwrap_or(i32::max_value()))
-            .unwrap_or(Utc::now().year().try_into().unwrap_or(i32::max_value()));
-        st_from_ts(Utc.ymd(y, m, d).and_hms(0, 1, 1).timestamp_millis())
+    let mapped2 = format2.convert(|((d, m), opt_y)| {
+        let opt_y = opt_y.and_then(|(_, y)| i32::try_from(y).ok());
+        let year = match opt_y {
+            None => Utc::now().year(),
+            Some(y) => y,
+        };
+        match Utc.ymd_opt(year, m, d) {
+            LocalResult::Single(d) => st_from_ts(d.and_hms(0, 1, 1).timestamp_millis())
+                .map_err(|_| ParseCommandError::DateFormat),
+            _ => Err(ParseCommandError::DateFormat),
+        }
     });
 
-    mapped1 | mapped2
+    with_error(mapped1 | mapped2, move || err_date_format(ctx.clone()))
 }
 
 type CommandParser<'a> = Parser<'a, u8, Command>;
 
-fn ping<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!ping");
-    cn.map(|_| Command::Ping).name("ping")
+fn ping<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let cn = with_success(seq(b"!ping"), move || ctx_command("ping", ctx.clone()));
+    cn.map(|_| Command::Ping)
 }
 
-fn add<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!new") - space();
-    let id = project_ident();
+fn help<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let cn = with_success(seq(b"!help") | seq(b"!h"), move || {
+        ctx_command("help", ctx.clone())
+    });
+    cn.map(|_| Command::Help)
+}
+
+fn add<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!new") - space(), move || {
+        ctx_command("new", mctx.clone())
+    });
+    let id = project_ident(ctx.clone());
     let all = cn + id;
     all.map(|(_, project_name)| Command::Add(project_name))
-        .name("new")
 }
 
-fn digest<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!digest") - space();
-    let id = project_ident();
+fn digest<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!digest") - space(), move || {
+        ctx_command("digest", mctx.clone())
+    });
+    let id = project_ident(ctx.clone());
     let all = cn + id;
     all.map(|(_, project_name)| Command::Digest(project_name))
-        .name("digest")
 }
 
-fn start<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!do") - space();
-    let id = project_ident() - space();
-    let task = ident() - space();
-    let d = duration();
+fn start<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!do") - space(), move || {
+        ctx_command("do", mctx.clone())
+    });
+    let id = project_ident(ctx.clone()) - space();
+    let task = ident(ctx.clone()) - space();
+    let d = duration(ctx.clone());
     let all = cn + id + task + d;
     all.map(|(((_, project_name), task), duration)| Command::Do(project_name, task, duration))
         .name("do")
 }
 
-fn done<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!done") - space();
-    let id = project_ident() - space();
-    let task = ident() - space();
-    let d = duration();
+fn done<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!done") - space(), move || {
+        ctx_command("done", mctx.clone())
+    });
+    let id = project_ident(ctx.clone()) - space();
+    let task = ident(ctx.clone()) - space();
+    let d = duration(ctx.clone());
     let all = cn + id + task + d;
     all.map(|(((_, project_name), task), duration)| Command::Done(project_name, task, duration))
         .name("done")
 }
 
-fn switch<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!switch") - space();
-    let id = project_ident() - space();
-    let task = ident();
+fn switch<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!switch") - space(), move || {
+        ctx_command("switch", mctx.clone())
+    });
+    let id = project_ident(ctx.clone()) - space();
+    let task = ident(ctx.clone());
     let all = cn + id + task;
     all.map(|((_, project_name), task)| Command::Switch(project_name, task))
         .name("switch")
 }
 
-fn stop<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!stop");
+fn stop<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let cn = with_success(seq(b"!stop"), move || ctx_command("stop", ctx.clone()));
     cn.map(|_| Command::Stop).name("stop")
 }
 
-fn more<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!more") - space();
-    let d = duration();
+fn more<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!more") - space(), move || {
+        ctx_command("more", mctx.clone())
+    });
+    let d = duration(ctx.clone());
     let all = cn + d;
     all.map(|(_, duration)| Command::More(duration))
         .name("more")
 }
 
-fn list<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!ls");
+fn list<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let cn = with_success(seq(b"!ls"), move || ctx_command("ls", ctx.clone()));
     cn.map(|_| Command::List).name("list")
 }
 
-fn since<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!since");
-    let t = date() | duration().map(|d| time::SystemTime::now() - d);
+fn since<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!since"), move || ctx_command("since", mctx.clone()));
+    let t = date(ctx.clone()) | duration(ctx.clone()).map(|d| time::SystemTime::now() - d);
     let all = cn - space() + t;
     all.map(|(_, st)| Command::Since(st)).name("since")
 }
 
-fn deadline<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!deadline") - space();
-    let id = project_ident() - space();
-    let d = date();
+fn deadline<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!deadline") - space(), move || {
+        ctx_command("deadline", mctx.clone())
+    });
+    let id = project_ident(ctx.clone()) - space();
+    let d = date(ctx.clone());
     let all = cn + id + d;
     all.map(|((_, project_name), d)| Command::Deadline(project_name, d))
         .name("deadline")
 }
 
-fn provision<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!provision") - space();
-    let id = project_ident() - space();
-    let d = duration();
+fn provision<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!provision") - space(), move || {
+        ctx_command("provision", mctx.clone())
+    });
+    let id = project_ident(ctx.clone()) - space();
+    let d = duration(ctx.clone());
     let all = cn + id + d;
     all.map(|((_, project_name), d)| Command::Provision(project_name, d))
         .name("provision")
 }
 
-fn complete<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!complete") - space();
-    let id = project_ident() - space();
-    let d = date().opt();
+fn complete<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!complete") - space(), move || {
+        ctx_command("complete", mctx.clone())
+    });
+    let id = project_ident(ctx.clone()) - space();
+    let d = date(ctx.clone()).opt();
     let all = cn + id + d;
     all.map(|((_, project_name), d)| match d {
         Some(d) => Command::Complete(project_name, d),
@@ -277,74 +315,103 @@ fn complete<'a>() -> CommandParser<'a> {
     .name("complete")
 }
 
-fn note<'a>() -> CommandParser<'a> {
-    let cn = seq(b"!note") - space();
-    let id = project_ident() - space();
+fn note<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!note") - space(), move || {
+        ctx_command("note", mctx.clone())
+    });
+    let id = project_ident(ctx.clone()) - space();
     let content = string();
     let all = cn + id + content;
     all.map(|((_, project_name), c)| Command::Note(project_name, c))
         .name("note")
 }
 
-fn command<'a>() -> CommandParser<'a> {
+fn command<'a>(ctx: SharedContext) -> CommandParser<'a> {
     {
-        ping()
-            | add()
-            | start()
-            | done()
-            | stop()
-            | list()
-            | digest()
-            | since()
-            | more()
-            | switch()
-            | deadline()
-            | provision()
-            | complete()
-            | note()
+        ping(ctx.clone())
+            | help(ctx.clone())
+            | add(ctx.clone())
+            | start(ctx.clone())
+            | done(ctx.clone())
+            | stop(ctx.clone())
+            | list(ctx.clone())
+            | digest(ctx.clone())
+            | since(ctx.clone())
+            | more(ctx.clone())
+            | switch(ctx.clone())
+            | deadline(ctx.clone())
+            | provision(ctx.clone())
+            | complete(ctx.clone())
+            | note(ctx.clone())
     }
     .name("command")
         - trailing_space()
 }
 
-pub fn parse_command<'a>(expr: &'a str) -> Result<Command, Error> {
-    let result = command().parse(expr.as_bytes());
-    println!("Parsed \"{}\" {}", expr, result.is_ok());
-    result
+pub fn parse_command<'a>(expr: &'a str) -> Result<Command, ParseCommandError> {
+    // let result = command().parse(expr.as_bytes());
+    // println!("Parsed \"{}\" {}", expr, result.is_ok());
+    // result
+    let ctx = new_context();
+    match command(ctx.clone()).parse(expr.as_bytes()) {
+        Ok(command) => Ok(command),
+        Err(_) => {
+            let ctx = ctx.borrow();
+            match (ctx.command.clone(), ctx.error.clone()) {
+                (None, _) => Err(ParseCommandError::NotFound),
+                (Some(_), Some(err)) => Err(err),
+                (_, _) => Err(ParseCommandError::Mysterious),
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::expr::*;
+
+    #[test]
+    fn parse_error_is_nice() {
+        let expected = String::from("Command does not exists");
+        let result = match parse_command("!truc") {
+            Ok(_) => String::from("Should not be OK"),
+            Err(err) => format!("{}", err),
+        };
+
+        assert_eq!(result, expected);
+    }
+
     #[test]
     fn parse_do_ok() {
+        let expected: Result<Command, ParseCommandError> = Ok(Command::Do(
+            "foo/0".into(),
+            "dev".into(),
+            time::Duration::from_secs(3 * 60 * 60 + (30 * 60)),
+        ));
         assert_eq!(
-            parse_command("!do foo/0 dev 3h 30m"),
-            Ok(Command::Do(
-                "foo/0".into(),
-                "dev".into(),
-                time::Duration::from_secs(3 * 60 * 60 + (30 * 60))
-            ))
+            parse_command("!do foo/0 dev 3h 30m").is_ok(),
+            expected.is_ok()
         );
     }
     #[test]
     fn parse_new_ok() {
         assert_eq!(
-            add().parse("!new ac/bot".as_bytes()),
+            add(new_context()).parse("!new ac/bot".as_bytes()),
             Ok(Command::Add("ac/bot".into(),))
         );
     }
     #[test]
     fn parse_project_ident() {
         assert_eq!(
-            project_ident().parse("ac/bot".as_bytes()),
+            project_ident(new_context()).parse("ac/bot".as_bytes()),
             Ok(String::from("ac/bot"))
         );
     }
     #[test]
     fn parse_project_ident_fail() {
         assert_eq!(
-            project_ident().parse("ac-bot".as_bytes()),
+            project_ident(new_context()).parse("ac-bot".as_bytes()),
             Err(pom::Error::Custom {
                 message: "failed to parse Project identifier".into(),
                 position: 0,
@@ -355,19 +422,15 @@ mod tests {
     #[test]
     fn parse_date_iso() {
         assert_eq!(
-            date().parse("2042-05-29".as_bytes()),
-            Ok(st_from_ts(
-                Utc.ymd(2042, 05, 29).and_hms(0, 1, 1).timestamp_millis(),
-            ))
+            date(new_context()).parse("2042-05-29".as_bytes()),
+            Ok(st_from_ts(Utc.ymd(2042, 05, 29).and_hms(0, 1, 1).timestamp_millis(),).unwrap())
         );
     }
     #[test]
     fn parse_date_fancy() {
         assert_eq!(
-            date().parse("29/05/2042".as_bytes()),
-            Ok(st_from_ts(
-                Utc.ymd(2042, 05, 29).and_hms(0, 1, 1).timestamp_millis(),
-            ))
+            date(new_context()).parse("29/05/2042".as_bytes()),
+            Ok(st_from_ts(Utc.ymd(2042, 05, 29).and_hms(0, 1, 1).timestamp_millis(),).unwrap())
         );
     }
 }

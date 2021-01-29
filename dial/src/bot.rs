@@ -1,6 +1,7 @@
 use crate::make;
 use crate::notif::{start_notifications, Notification, NotificationHandler};
 use crossbeam_channel::{unbounded, Receiver, Sender};
+use make::parse_error;
 use matrix_bot_api::handlers::{HandleResult, Message, MessageHandler};
 use matrix_bot_api::{ActiveBot, MatrixBot, MessageType};
 use shell::expr::{parse_command, Command};
@@ -73,11 +74,13 @@ impl CommandHandler {
                     Command::Provision(project, d) => make::provision(self, project, d),
                     Command::Complete(project, end) => make::complete(self, project, end),
                     Command::Note(project, content) => make::note(self, u, project, content),
+                    Command::Help => make::help(self),
                 }
             }
             Err(err) => {
-                println!("ParseError: {}", err);
-                make::help(self)
+                // println!("ParseError: {}", err);
+                // make::help(self)
+                make::parse_error(&err)
             }
         }
     }
