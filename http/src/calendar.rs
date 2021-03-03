@@ -62,9 +62,9 @@ fn cal_project(recs: &Vec<TaskRecord>) -> Element {
             CalendarItem::Month(d) => fm.map(
                 (b, m, w),
                 |(b, _, w)| (b, div(h1(month_and_year(&d))).set("class", "month"), w),
-                |(b, m, _)| {
+                |(b, m, w)| {
                     (
-                        b + m,
+                        b + (m + w),
                         div(h1(month_and_year(&d))).set("class", "month"),
                         div(Empty).set("class", "week empty"),
                     )
@@ -73,7 +73,13 @@ fn cal_project(recs: &Vec<TaskRecord>) -> Element {
             CalendarItem::Week(_d) => fw.map(
                 (b, m, w),
                 |acc| acc,
-                |(b, m, w)| (b, m + w, div(Empty).set("class", "week")),
+                |(b, m, w)| {
+                    (
+                        b,
+                        m + w,
+                        div(Empty).set("class", format!("week start-day-{}", _d.day())),
+                    )
+                },
             ),
             CalendarItem::EmptyDay(d, events) => (
                 b,

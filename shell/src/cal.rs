@@ -415,12 +415,12 @@ mod tests {
     fn iter_calendar_ok() {
         let mut cal: Calendar<u32> = Calendar::new();
         let (s0, e0) = (
-            Local.ymd(2020, 1, 1).and_hms(12, 0, 0),
-            Local.ymd(2020, 1, 1).and_hms(14, 0, 0),
+            Local.ymd(2021, 2, 20).and_hms(12, 0, 0),
+            Local.ymd(2021, 2, 20).and_hms(14, 0, 0),
         );
         let (s1, e1) = (
-            Local.ymd(2021, 1, 1).and_hms(12, 0, 0),
-            Local.ymd(2021, 1, 1).and_hms(14, 0, 0),
+            Local.ymd(2021, 2, 23).and_hms(12, 0, 0),
+            Local.ymd(2021, 2, 23).and_hms(14, 0, 0),
         );
         cal.push(s0, e0, 1);
         cal.push(s1, e1, 2);
