@@ -8,6 +8,7 @@ use std::rc::Rc;
 pub enum ParseCommandError {
     NotFound,
     Mysterious,
+    Unknown(String),
     DateFormat,
     DurationFormat,
     IdentFormat,
@@ -19,6 +20,7 @@ impl fmt::Display for ParseCommandError {
         match self {
             Self::NotFound => write!(f, "Command does not exists"),
             Self::Mysterious => write!(f, "Something bad happened..."),
+            Self::Unknown(name) => write!(f, "Something bad happened in `{}`...", name),
             Self::DateFormat => write!(f, "A date was not well encoded"),
             Self::DurationFormat => write!(f, "A duration was not well encoded"),
             Self::IdentFormat => write!(f, "An identifier was not working for me"),

@@ -32,8 +32,7 @@ pub trait MessageHandler {
 pub fn extract_command<'a>(message: &'a str, prefix: &str) -> Option<&'a str> {
     if message.starts_with(prefix) {
         let new_start = prefix.len();
-        let key = message[new_start..].split_whitespace().next().unwrap();
-        return Some(&key);
+        return message[new_start..].split_whitespace().next();
     }
     None
 }

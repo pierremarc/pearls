@@ -1,7 +1,6 @@
 use crate::make;
 use crate::notif::{start_notifications, Notification, NotificationHandler};
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use make::parse_error;
 use matrix_bot_api::handlers::{HandleResult, Message, MessageHandler};
 use matrix_bot_api::{ActiveBot, MatrixBot, MessageType};
 use shell::expr::{parse_command, Command};

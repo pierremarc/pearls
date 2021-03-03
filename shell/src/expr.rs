@@ -305,7 +305,7 @@ fn complete<'a>(ctx: SharedContext) -> CommandParser<'a> {
     let cn = with_success(seq(b"!complete") - space(), move || {
         ctx_command("complete", mctx.clone())
     });
-    let id = project_ident(ctx.clone()) - space();
+    let id = project_ident(ctx.clone()) - space().opt();
     let d = date(ctx.clone()).opt();
     let all = cn + id + d;
     all.map(|((_, project_name), d)| match d {
@@ -361,7 +361,8 @@ pub fn parse_command<'a>(expr: &'a str) -> Result<Command, ParseCommandError> {
             match (ctx.command.clone(), ctx.error.clone()) {
                 (None, _) => Err(ParseCommandError::NotFound),
                 (Some(_), Some(err)) => Err(err),
-                (_, _) => Err(ParseCommandError::Mysterious),
+                (Some(name), _) => Err(ParseCommandError::Unknown(name)),
+                // (_, _) => Err(ParseCommandError::Mysterious),
             }
         }
     }
@@ -432,5 +433,13 @@ mod tests {
             date(new_context()).parse("29/05/2042".as_bytes()),
             Ok(st_from_ts(Utc.ymd(2042, 05, 29).and_hms(0, 1, 1).timestamp_millis(),).unwrap())
         );
+    }
+
+    #[test]
+    fn parse_complete_without_date() {
+        match parse_command("!complete foo/bar") {
+            Err(r) => panic!("err: {}", r),
+            Ok(_) => (),
+        }
     }
 }
