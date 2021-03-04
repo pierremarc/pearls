@@ -4,6 +4,9 @@ SELECT id,
     start_time,
     end_time,
     provision,
-    completed
+    completed,
+    is_meta,
+    parent
 FROM project
-WHERE name = :project;
+WHERE name = :project
+LIMIT 1;

@@ -2,13 +2,13 @@ use crate::bot;
 use shell::util::human_duration;
 use std::time;
 
-use super::common::select_project;
+use super::common::{check_meta, select_project};
 
 pub fn done(
     handler: &mut bot::CommandHandler,
     user: String,
     duration: time::Duration,
-    project: String,
+    project_name: String,
     task: String,
 ) -> Option<(String, String)> {
     let now = time::SystemTime::now();
@@ -22,42 +22,45 @@ pub fn done(
             ),
             String::new(),
         )),
-        None => match select_project(handler, &project) {
+        None => match select_project(handler, &project_name) {
             Err(candidates) => Some((candidates.as_text(""), candidates.as_html(""))),
-            Ok(_) => {
-                let given_start = now - duration;
-                let start = handler
-                    .store
-                    .select_latest_task_for(user.clone())
-                    .map(|res| {
-                        let i = res
-                            .first()
-                            .map(|rec| rec.end_time)
-                            .unwrap_or(given_start)
-                            .clone();
-                        match i < given_start {
-                            true => given_start,
-                            false => i,
-                        }
-                    })
-                    .unwrap_or(given_start);
+            Ok(project) => match check_meta(handler, &project) {
+                Some(r) => Some(r),
+                None => {
+                    let given_start = now - duration;
+                    let start = handler
+                        .store
+                        .select_latest_task_for(user.clone())
+                        .map(|res| {
+                            let i = res
+                                .first()
+                                .map(|rec| rec.end_time)
+                                .unwrap_or(given_start)
+                                .clone();
+                            match i < given_start {
+                                true => given_start,
+                                false => i,
+                            }
+                        })
+                        .unwrap_or(given_start);
 
-                let message = match start > given_start {
-                    true => format!(
+                    let message = match start > given_start {
+                        true => format!(
                         "Recorded, but adjusted to the end of your last task. Resulting in just {}",
                         human_duration(start.elapsed().unwrap_or(time::Duration::from_millis(0)))
                     ),
-                    false => "Well recorded.".into(),
-                };
+                        false => "Well recorded.".into(),
+                    };
 
-                match handler
-                    .store
-                    .insert_do(user, start.clone(), now, project, task)
-                {
-                    Ok(_) => Some((message, String::new())),
-                    Err(err) => Some((format!("Error: {}", err), String::new())),
+                    match handler
+                        .store
+                        .insert_do(user, start.clone(), now, project_name, task)
+                    {
+                        Ok(_) => Some((message, String::new())),
+                        Err(err) => Some((format!("Error: {}", err), String::new())),
+                    }
                 }
-            }
+            },
         },
     }
 }

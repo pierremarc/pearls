@@ -101,8 +101,6 @@ fn cal(store: ArcStore, project: String) -> Option<String> {
     if let Ok(store) = store.lock() {
         let available = store
             .select_project_info(project.clone())
-            .unwrap_or(Vec::new())
-            .first()
             .map(|rec| rec.provision.map_or(0, |d| dur(&d)) / (1000 * 60 * 60))
             .unwrap_or(0);
 

@@ -73,11 +73,50 @@ pub fn select_project(
     handler: &mut bot::CommandHandler,
     name: &str,
 ) -> Result<ProjectRecord, Candidates> {
-    match handler.store.select_project_info(name.into()) {
-        Err(_) => Err(Candidates::empty()),
-        Ok(rows) => match rows.get(0) {
-            None => Err(get_candidates(handler, name)),
-            Some(rec) => Ok(rec.clone()),
-        },
+    handler
+        .store
+        .select_project_info(name.into())
+        .map_err(|_| Candidates::empty())
+    // match handler.store.select_project_info(name.into()) {
+    //     Err(_) => Err(Candidates::empty()),
+    //     Ok(rows) => match rows.get(0) {
+    //         None => Err(get_candidates(handler, name)),
+    //         Some(rec) => Ok(rec.clone()),
+    //     },
+    // }
+}
+
+const IS_META_DISCLAIMER: &str =
+    "This is a meta project, you must assign work to its child projects.";
+
+fn project_list_string(projects: &Vec<&ProjectRecord>) -> String {
+    projects
+        .iter()
+        .map(|project| format!("→ {}", project.name))
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+pub fn check_meta(
+    handler: &mut bot::CommandHandler,
+    project: &ProjectRecord,
+) -> Option<(String, String)> {
+    match project.is_meta {
+        false => None,
+        true => handler
+            .store
+            .select_all_project_info()
+            .ok()
+            .map(|projects| {
+                let projects = projects
+                    .iter()
+                    .filter(|p| p.parent.map(|parent| parent == project.id).unwrap_or(false))
+                    .collect::<Vec<_>>();
+
+                (
+                    format!("{}\n{}", IS_META_DISCLAIMER, project_list_string(&projects)),
+                    String::new(),
+                )
+            }),
     }
 }

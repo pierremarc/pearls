@@ -1,11 +1,20 @@
 use crate::util::{dur, dur_from_ts, st_from_ts, ts};
-use rusqlite::{named_params, Connection, Result as SqlResult, Row, ToSql, NO_PARAMS};
+use rusqlite::{
+    named_params, types::ToSqlOutput, Connection, Result as SqlResult, Row, ToSql, NO_PARAMS,
+};
 use serde::{Deserialize, Serialize};
 use std;
 use std::fmt;
 use std::path::Path;
 use std::time;
-use uuid::Uuid;
+
+// struct SqlVec<T>(Vec<T>);
+
+// impl<T: ToSql> ToSql for SqlVec<T> {
+//     fn to_sql(&self) -> SqlResult<ToSqlOutput<'_>> {
+
+//     }
+// }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TaskRecord {
@@ -63,6 +72,8 @@ pub struct ProjectRecord {
     pub end_time: Option<time::SystemTime>,
     pub provision: Option<time::Duration>,
     pub completed: Option<time::SystemTime>,
+    pub is_meta: bool,
+    pub parent: Option<i64>,
 }
 
 impl ProjectRecord {
@@ -75,6 +86,8 @@ impl ProjectRecord {
             end_time: row.get(4).map(st_from_ts).ok(),
             provision: row.get(5).map(dur_from_ts).ok(),
             completed: row.get(6).map(st_from_ts).ok(),
+            is_meta: row.get(7).unwrap_or(false),
+            parent: row.get(8).ok(),
         })
     }
 }
@@ -110,6 +123,7 @@ pub enum StoreError {
     Open(String),
     LogRecord,
     Iter,
+    Get,
 }
 
 impl fmt::Display for StoreError {
@@ -118,6 +132,7 @@ impl fmt::Display for StoreError {
             StoreError::Open(p) => write!(f, "Failed to open connection to {}", p),
             StoreError::LogRecord => write!(f, "Failed to log record"),
             StoreError::Iter => write!(f, "Failed to iterate"),
+            StoreError::Get => write!(f, "Failed to get a record"),
         }
     }
 }
@@ -143,6 +158,8 @@ pub enum Name {
     UpdateDeadline,
     UpdateProvision,
     UpdateTaskEnd,
+    UpdateMeta,
+    UpdateParent,
 }
 
 fn sql(name: Name) -> &'static str {
@@ -165,6 +182,8 @@ fn sql(name: Name) -> &'static str {
         Name::UpdateDeadline => include_str!("sql/update_deadline.sql"),
         Name::UpdateProvision => include_str!("sql/update_provision.sql"),
         Name::UpdateTaskEnd => include_str!("sql/update_task_end.sql"),
+        Name::UpdateMeta => include_str!("sql/update_meta.sql"),
+        Name::UpdateParent => include_str!("sql/update_parent.sql"),
     }
 }
 
@@ -191,6 +210,12 @@ fn migrate(conn: &Connection) {
             conn.execute_batch(include_str!("sql/migrations/003.sql"))
                 .expect("Failed migration: 003.sql");
             println!("Applied sql/migrations/003.sql");
+            migrate(conn);
+        }
+        3 => {
+            conn.execute_batch(include_str!("sql/migrations/004.sql"))
+                .expect("Failed migration: 004.sql");
+            println!("Applied sql/migrations/004.sql");
             migrate(conn);
         }
         _ => println!("Migrate completed, we're at version {}", user_version),
@@ -355,6 +380,26 @@ impl Store {
         )
     }
 
+    pub fn update_meta(&mut self, name: String, is_meta: bool) -> StoreResult<usize> {
+        self.exec(
+            Name::UpdateMeta,
+            named_params! {
+                ":name": name.clone(),
+                ":is_meta": is_meta,
+            },
+        )
+    }
+
+    pub fn update_parent(&mut self, name: String, parent: i64) -> StoreResult<usize> {
+        self.exec(
+            Name::UpdateParent,
+            named_params! {
+                ":name": name.clone(),
+                ":parent": parent,
+            },
+        )
+    }
+
     pub fn insert_notification(&mut self, tid: i64, end: time::SystemTime) -> StoreResult<usize> {
         self.exec(
             Name::InsertNotification,
@@ -406,7 +451,7 @@ impl Store {
         )
     }
 
-    pub fn select_project_info(&self, project: String) -> StoreResult<Vec<ProjectRecord>> {
+    pub fn select_project_info(&self, project: String) -> StoreResult<ProjectRecord> {
         self.map_rows(
             Name::SelectProjectInfo,
             named_params! {
@@ -414,26 +459,68 @@ impl Store {
             },
             ProjectRecord::from_row,
         )
+        .and_then(|records| match records.get(0) {
+            None => Err(StoreError::Get),
+            Some(r) => Ok(r.clone()),
+        })
     }
 
-    pub fn select_project(&self, project: String) -> StoreResult<Vec<AggregatedTaskRecord>> {
-        self.map_rows(
-            Name::SelectProject,
-            named_params! {
-                ":project": project.clone(),
-            },
-            AggregatedTaskRecord::from_row,
-        )
+    pub fn select_project(&self, project_name: String) -> StoreResult<Vec<AggregatedTaskRecord>> {
+        self.select_project_info(project_name.clone())
+            .and_then(|project| {
+                if project.is_meta {
+                    self.select_all_project_info().map(|projects| {
+                        projects
+                            .iter()
+                            .filter(|p| {
+                                p.parent
+                                    .map(|parent_id| parent_id == project.id)
+                                    .unwrap_or(false)
+                            })
+                            .filter_map(|project| self.select_project(project.name.clone()).ok())
+                            .flatten()
+                            .collect()
+                    })
+                } else {
+                    self.map_rows(
+                        Name::SelectProject,
+                        named_params! {
+                            ":project": project_name.clone(),
+                        },
+                        AggregatedTaskRecord::from_row,
+                    )
+                }
+            })
     }
 
-    pub fn select_project_detail(&self, project: String) -> StoreResult<Vec<TaskRecord>> {
-        self.map_rows(
-            Name::SelectProjectDetail,
-            named_params! {
-                ":project": project.clone(),
-            },
-            TaskRecord::from_row,
-        )
+    pub fn select_project_detail(&self, project_name: String) -> StoreResult<Vec<TaskRecord>> {
+        self.select_project_info(project_name.clone())
+            .and_then(|project| {
+                if project.is_meta {
+                    self.select_all_project_info().map(|projects| {
+                        projects
+                            .iter()
+                            .filter(|p| {
+                                p.parent
+                                    .map(|parent_id| parent_id == project.id)
+                                    .unwrap_or(false)
+                            })
+                            .filter_map(|project| {
+                                self.select_project_detail(project.name.clone()).ok()
+                            })
+                            .flatten()
+                            .collect()
+                    })
+                } else {
+                    self.map_rows(
+                        Name::SelectProjectDetail,
+                        named_params! {
+                            ":project": project_name.clone(),
+                        },
+                        TaskRecord::from_row,
+                    )
+                }
+            })
     }
 
     pub fn select_notes(&self, project: String) -> StoreResult<Vec<NoteRecord>> {

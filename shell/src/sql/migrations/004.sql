@@ -1,0 +1,5 @@
+PRAGMA user_version = 4;
+ALTER TABLE project
+ADD COLUMN is_meta BOOLEAN DEFAULT 0;
+ALTER TABLE project
+ADD COLUMN parent INTEGER;

@@ -52,10 +52,7 @@ pub fn digest(handler: &mut bot::CommandHandler, project: String) -> Option<(Str
         Err(candidates) => Some((candidates.as_text(""), candidates.as_html(""))),
         Ok(_) => match handler.store.select_project(project.clone()) {
             Ok(ref recs) => {
-                let available = handler
-                    .store
-                    .select_project_info(project.clone())
-                    .unwrap_or(Vec::new());
+                let available = handler.store.select_project_info(project.clone());
                 let note_records = handler
                     .store
                     .select_notes(project.clone())
@@ -97,7 +94,6 @@ pub fn digest(handler: &mut bot::CommandHandler, project: String) -> Option<(Str
                     / 3600;
 
                 let (h0, h1) = available
-                    .first()
                     .map(|rec| {
                         (
                             format!(
