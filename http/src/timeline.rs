@@ -1,5 +1,5 @@
 use html::{
-    anchor, body, details, div, em, h1, h2, head, html, no_display, paragraph, span, style,
+    anchor, body, details, div, em, h1, h2, head, html, meta, no_display, paragraph, span, style,
     summary, with_doctype, Element, Empty,
 };
 use shell::{
@@ -322,6 +322,14 @@ fn get_projects(s: ArcStore) -> Result<Vec<TimelineProject>, StoreError> {
     projects
 }
 
+fn meta_class(is_meta: bool, el: Element) -> Element {
+    if is_meta {
+        el.append(div("meta").class("meta-label"))
+    } else {
+        el
+    }
+}
+
 async fn timeline_handler(s: ArcStore, base_path: String) -> Result<impl warp::Reply, Infallible> {
     let css = style(String::from(include_str!("timeline.css"))).set("type", "text/css");
 
@@ -333,28 +341,40 @@ async fn timeline_handler(s: ArcStore, base_path: String) -> Result<impl warp::R
         Ok(projects) => {
             let elements: Vec<Element> = projects
                 .iter()
-                .map(|(p, done, notes)| match (p.end_time, p.provision) {
-                    (Some(end), Some(provision)) => make_full(
-                        &p.name,
-                        base_path.clone(),
-                        &end,
-                        &provision,
-                        done,
-                        p.completed,
-                        notes,
-                    ),
-                    (None, Some(provision)) => make_with_provision(
-                        &p.name,
-                        base_path.clone(),
-                        &provision,
-                        done,
-                        p.completed,
-                        notes,
-                    ),
-                    (Some(end), None) => {
-                        make_with_end(&p.name, base_path.clone(), &end, done, p.completed, notes)
-                    }
-                    (None, None) => make_bare(&p.name, base_path.clone(), done, p.completed, notes),
+                .map(|(p, done, notes)| {
+                    meta_class(
+                        p.is_meta,
+                        match (p.end_time, p.provision) {
+                            (Some(end), Some(provision)) => make_full(
+                                &p.name,
+                                base_path.clone(),
+                                &end,
+                                &provision,
+                                done,
+                                p.completed,
+                                notes,
+                            ),
+                            (None, Some(provision)) => make_with_provision(
+                                &p.name,
+                                base_path.clone(),
+                                &provision,
+                                done,
+                                p.completed,
+                                notes,
+                            ),
+                            (Some(end), None) => make_with_end(
+                                &p.name,
+                                base_path.clone(),
+                                &end,
+                                done,
+                                p.completed,
+                                notes,
+                            ),
+                            (None, None) => {
+                                make_bare(&p.name, base_path.clone(), done, p.completed, notes)
+                            }
+                        },
+                    )
                 })
                 .collect();
 

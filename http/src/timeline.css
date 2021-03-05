@@ -24,6 +24,7 @@ h1 {
     width: 100%;
     max-width: 32rem;
     justify-content: flex-end;
+    position: relative;
 }
 
 .project-wrapper H2 {
@@ -43,6 +44,15 @@ h1 {
     width: 100%;
 }
 
+
+.meta-label {
+    position: absolute;
+    right: calc(50% + 1em);
+    top: 1rem;
+    padding: 0.5em;
+    background-color: lightgreen;
+    color: white;
+}
 
 .time-over {
     background-color: red;

@@ -24,6 +24,10 @@ fn make_text(handler: &mut bot::CommandHandler) -> String {
             {}
         !note <project-name> <text>
             add a note to a project, free text.
+        !meta <project-name>
+            mark this project as a meta project.
+        !parent <child-project-name> <parent-project-name>
+            attach a project to a meta project.
         !do <project-name> <task-name> <duration>
             start a new task that will last for <duration>
         !done <project-name> <task-name> <duration>
@@ -73,6 +77,14 @@ fn make_html(handler: &mut bot::CommandHandler) -> String {
         h4(vec![span("!note   "),  em("project-name "), em("text")]),
         paragraph(
             "add a note to a project, free text.",
+        ),
+        h4(vec![span("!meta   "),  em("project-name ")]),
+        paragraph(
+            "mark this project as a meta project.",
+        ),
+        h4(vec![span("!parent   "),  em("child-project-name "),  em("parent-project-name ")]),
+        paragraph(
+            "attach a project to a meta project.",
         ),
         h4(vec![
             span("!do  "),
