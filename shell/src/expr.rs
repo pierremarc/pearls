@@ -30,23 +30,9 @@ pub enum Command {
     Provision(String, time::Duration),
     Complete(String, time::SystemTime),
     Note(String, String),
+    Meta(String),
+    Parent(String, String),
 }
-// pub enum CommandName {
-//     Ping,
-//     Add,
-//     Do,
-//     Done,
-//     Switch,
-//     Stop,
-//     More,
-//     List,
-//     Digest,
-//     Since,
-//     Deadline,
-//     Provision,
-//     Complete,
-//     Note,
-// }
 
 fn space<'a>() -> Parser<'a, u8, ()> {
     one_of(b" \t").repeat(1..).discard()
@@ -327,6 +313,29 @@ fn note<'a>(ctx: SharedContext) -> CommandParser<'a> {
         .name("note")
 }
 
+fn meta<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!meta") - space(), move || {
+        ctx_command("meta", mctx.clone())
+    });
+    let id = project_ident(ctx.clone());
+    let all = cn + id;
+    all.map(|(_, project_name)| Command::Meta(project_name))
+        .name("meta")
+}
+
+fn parent<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!parent") - space(), move || {
+        ctx_command("parent", mctx.clone())
+    });
+    let child_id = project_ident(ctx.clone()) - space();
+    let parent_id = project_ident(ctx.clone());
+    let all = cn + child_id + parent_id;
+    all.map(|((_, child), parent)| Command::Parent(child, parent))
+        .name("parent")
+}
+
 fn command<'a>(ctx: SharedContext) -> CommandParser<'a> {
     {
         ping(ctx.clone())
@@ -344,28 +353,24 @@ fn command<'a>(ctx: SharedContext) -> CommandParser<'a> {
             | provision(ctx.clone())
             | complete(ctx.clone())
             | note(ctx.clone())
+            | meta(ctx.clone())
+            | parent(ctx.clone())
     }
     .name("command")
         - trailing_space()
 }
 
 pub fn parse_command<'a>(expr: &'a str) -> Result<Command, ParseCommandError> {
-    // let result = command().parse(expr.as_bytes());
-    // println!("Parsed \"{}\" {}", expr, result.is_ok());
-    // result
     let ctx = new_context();
-    match command(ctx.clone()).parse(expr.as_bytes()) {
-        Ok(command) => Ok(command),
-        Err(_) => {
-            let ctx = ctx.borrow();
-            match (ctx.command.clone(), ctx.error.clone()) {
-                (None, _) => Err(ParseCommandError::NotFound),
-                (Some(_), Some(err)) => Err(err),
-                (Some(name), _) => Err(ParseCommandError::Unknown(name)),
-                // (_, _) => Err(ParseCommandError::Mysterious),
-            }
+    command(ctx.clone()).parse(expr.as_bytes()).map_err(|_| {
+        let ctx = ctx.borrow();
+        match (ctx.command.clone(), ctx.error.clone()) {
+            (None, _) => ParseCommandError::NotFound,
+            (Some(_), Some(err)) => err,
+            (Some(name), _) => ParseCommandError::Unknown(name),
+            // (_, _) => Err(ParseCommandError::Mysterious),
         }
-    }
+    })
 }
 
 #[cfg(test)]
