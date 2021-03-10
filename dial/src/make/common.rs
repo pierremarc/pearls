@@ -15,7 +15,7 @@ impl Candidates {
         self.0
             .iter()
             .take(n)
-            .map(|(name, _)| name.clone())
+            .map(|(name, score)| name.clone())
             .collect()
     }
 
@@ -30,7 +30,7 @@ impl Candidates {
             },
         );
         let list: String = self
-            .take(5)
+            .take(8)
             .iter()
             .map(|c| format!("\n  - {}", c))
             .collect();
@@ -47,22 +47,42 @@ impl Candidates {
                 ))
             },
         );
-        let list_items: Vec<Element> = self.take(5).iter().map(|c| li(c)).collect();
+        let list_items: Vec<Element> = self.take(8).iter().map(|c| li(c)).collect();
         let list = ul(list_items);
         div(vec![title, list, paragraph(desc)]).as_string()
     }
 }
 
+fn get_project_name_parts(project_name: &str) -> Option<(String, String)> {
+    let parts: Vec<&str> = project_name.split("/").collect();
+    parts.get(0).and_then(|client_name| {
+        parts
+            .get(1)
+            .map(|project_name| (String::from(*client_name), String::from(*project_name)))
+    })
+}
+
 fn get_candidates(handler: &mut bot::CommandHandler, project: &str) -> Candidates {
-    match handler.store.select_all_project_info() {
-        Err(_) => Candidates::empty(),
-        Ok(rows) => {
+    match (
+        get_project_name_parts(project),
+        handler.store.select_all_project_info(),
+    ) {
+        (None, Err(_)) => Candidates::empty(),
+        (None, Ok(_)) => Candidates::empty(),
+        (Some(_), Err(_)) => Candidates::empty(),
+        (Some((ref_client, ref_project)), Ok(rows)) => {
             let mut names: Vec<ScoredName> = rows
                 .iter()
-                .map(|record| (record.name.clone(), levenshtein(project, &record.name)))
+                .filter_map(|record| {
+                    get_project_name_parts(&record.name).map(|(client_name, project_name)| {
+                        let client_score = levenshtein(&ref_client, &client_name) * 10 * 2;
+                        let project_score = levenshtein(&ref_project, &project_name) * 10 / 3;
+                        (record.name.clone(), client_score + project_score)
+                    })
+                })
                 .collect();
 
-            names.sort_by_key(|(_, n)| *n);
+            names.sort_by_key(|(_, score)| *score);
             // names.iter().take(5).map(|(name, _)| name.clone()).collect()
             Candidates(names, Some(project.into()))
         }
@@ -76,14 +96,7 @@ pub fn select_project(
     handler
         .store
         .select_project_info(name.into())
-        .map_err(|_| Candidates::empty())
-    // match handler.store.select_project_info(name.into()) {
-    //     Err(_) => Err(Candidates::empty()),
-    //     Ok(rows) => match rows.get(0) {
-    //         None => Err(get_candidates(handler, name)),
-    //         Some(rec) => Ok(rec.clone()),
-    //     },
-    // }
+        .map_err(|_| get_candidates(handler, name))
 }
 
 const IS_META_DISCLAIMER: &str =
