@@ -97,6 +97,7 @@ impl MessageHandler for CommandHandler {
     }
 
     fn handle_message(&mut self, bot: &ActiveBot, message: &Message) -> HandleResult {
+        println!(">>>>>> \nhandle_message {}\n", &message.body);
         let user = message.sender.clone();
         let body = message.body.clone();
         let room = message.room.clone();
@@ -128,10 +129,14 @@ impl MessageHandler for CommandHandler {
                     }
                     None => {}
                 };
+            } else {
+                println!("Ouch, could not get a connection for: {}", &room);
             }
+        } else {
+            println!("Ouch, could not lock the store");
         }
 
-        HandleResult::StopHandling
+        HandleResult::ContinueHandling
     }
 }
 
@@ -159,7 +164,7 @@ pub fn start_bot(
         });
 
         end_of_task(bot.get_activebot_clone(), arc_store.clone());
-        // bot.set_verbose(true);
+        bot.set_verbose(true);
         bot.run(&u, &p, &h);
     });
 

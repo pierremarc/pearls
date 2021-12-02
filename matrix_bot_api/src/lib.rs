@@ -79,6 +79,7 @@ pub struct MatrixBot {
     verbose: bool,
     update_read_marker: bool,
     handlers: Vec<Box<dyn MessageHandler + Send>>,
+    got_rooms: bool,
 }
 
 impl MatrixBot {
@@ -101,6 +102,7 @@ impl MatrixBot {
             verbose: false,
             update_read_marker: true,
             handlers: vec![Box::new(handler)],
+            got_rooms: false,
         }
     }
 
@@ -171,7 +173,12 @@ impl MatrixBot {
 
         match resp {
             BKResponse::UpdateRooms(x) => self.handle_rooms(x, active_bot),
-            //BKResponse::Rooms(x, _) => self.handle_rooms(x),
+            BKResponse::Rooms(x, _) => {
+                if self.got_rooms == false {
+                    self.got_rooms = true;
+                    self.init_rooms(x, active_bot);
+                }
+            }
             BKResponse::RoomMessages(x) => self.handle_messages(x, active_bot),
             BKResponse::Token(uid, _, _) => {
                 self.uid = Some(uid); // Successful login
@@ -211,6 +218,20 @@ impl MatrixBot {
                         HandleResult::ContinueHandling => continue,
                         HandleResult::StopHandling => break,
                     }
+                }
+            }
+        }
+    }
+
+    fn init_rooms(&mut self, rooms: Vec<Room>, active_bot: &ActiveBot) {
+        for rr in rooms {
+            self.backend
+                .send(BKCommand::JoinRoom(rr.id.clone()))
+                .unwrap();
+            for handler in self.handlers.iter_mut() {
+                match handler.handle_join(&active_bot, &rr) {
+                    HandleResult::ContinueHandling => continue,
+                    HandleResult::StopHandling => break,
                 }
             }
         }
