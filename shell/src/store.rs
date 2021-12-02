@@ -1,7 +1,5 @@
 use crate::util::{dur, dur_from_ts, st_from_ts, ts};
-use rusqlite::{
-    named_params, types::ToSqlOutput, Connection, Result as SqlResult, Row, ToSql, NO_PARAMS,
-};
+use rusqlite::{named_params, Connection, Result as SqlResult, Row, ToSql, NO_PARAMS};
 use serde::{Deserialize, Serialize};
 use std;
 use std::fmt;
@@ -113,26 +111,38 @@ impl NoteRecord {
     }
 }
 
-pub struct Store {
-    path: String,
+pub struct ConnectedStore {
+    room_id: String,
     conn: Connection,
+}
+
+pub struct Store {
+    root_dir: String,
+    connections: Vec<ConnectedStore>,
 }
 
 #[derive(Debug, Clone)]
 pub enum StoreError {
     Open(String),
+    Connected(String),
     LogRecord,
     Iter,
     Get,
+    Lock,
 }
 
 impl fmt::Display for StoreError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             StoreError::Open(p) => write!(f, "Failed to open connection to {}", p),
+            StoreError::Connected(p) => write!(f, "Failed to get a connection to {}", p),
             StoreError::LogRecord => write!(f, "Failed to log record"),
             StoreError::Iter => write!(f, "Failed to iterate"),
             StoreError::Get => write!(f, "Failed to get a record"),
+            StoreError::Lock => write!(
+                f,
+                "Rather obscure, but somewhere we failed to obtain a lock on a mutex..."
+            ),
         }
     }
 }
@@ -225,33 +235,63 @@ fn migrate(conn: &Connection) {
 pub type StoreResult<T> = Result<T, StoreError>;
 
 impl Store {
-    pub fn new(path: &Path) -> StoreResult<Store> {
-        match Connection::open(path) {
-            Ok(conn) => {
-                conn.execute("PRAGMA foreign_keys = ON;", NO_PARAMS)
-                    .expect("Failed to enable foreign_keys");
-                conn.execute(include_str!("sql/create_do.sql"), NO_PARAMS)
-                    .expect("failed creating table do");
-                conn.execute(include_str!("sql/create_project.sql"), NO_PARAMS)
-                    .expect("failed creating table project");
-                conn.execute(include_str!("sql/create_notification.sql"), NO_PARAMS)
-                    .expect("failed creating table notification");
-                conn.execute(include_str!("sql/create_cal.sql"), NO_PARAMS)
-                    .expect("failed creating table cal");
-
-                migrate(&conn);
-
-                Ok(Store {
-                    conn,
-                    path: path.to_string_lossy().into(),
-                })
-            }
-            Err(_) => Err(StoreError::Open(String::from(path.to_string_lossy()))),
+    pub fn new(root_dir: String) -> Store {
+        Store {
+            root_dir,
+            connections: vec![],
         }
     }
 
-    pub fn get_path(&self) -> &Path {
-        Path::new(&self.path)
+    pub fn connect(&mut self, db_name: &str) -> StoreResult<&mut ConnectedStore> {
+        let exists = self
+            .connections
+            .iter()
+            .map(|c| &c.room_id)
+            .find(|name| *name == db_name)
+            .is_some();
+        if exists {
+            return self.connected(db_name);
+        }
+        let root_path = Path::new(&self.root_dir);
+        let path = root_path.join(&db_name);
+        let conn = Connection::open(path).map_err(|_| StoreError::Open(db_name.into()))?;
+        conn.execute("PRAGMA foreign_keys = ON;", NO_PARAMS)
+            .expect("Failed to enable foreign_keys");
+        conn.execute(include_str!("sql/create_do.sql"), NO_PARAMS)
+            .expect("failed creating table do");
+        conn.execute(include_str!("sql/create_project.sql"), NO_PARAMS)
+            .expect("failed creating table project");
+        conn.execute(include_str!("sql/create_notification.sql"), NO_PARAMS)
+            .expect("failed creating table notification");
+        conn.execute(include_str!("sql/create_cal.sql"), NO_PARAMS)
+            .expect("failed creating table cal");
+
+        migrate(&conn);
+
+        self.connections.push(ConnectedStore {
+            conn,
+            room_id: db_name.into(),
+        });
+        self.connections
+            .last_mut()
+            .ok_or(StoreError::Open(db_name.into()))
+    }
+
+    pub fn connected(&mut self, db_name: &str) -> StoreResult<&mut ConnectedStore> {
+        self.connections
+            .iter_mut()
+            .find(|c| c.room_id == db_name)
+            .ok_or(StoreError::Connected(db_name.into()))
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut ConnectedStore> {
+        self.connections.iter_mut()
+    }
+}
+
+impl ConnectedStore {
+    pub fn room_id(&self) -> String {
+        self.room_id.clone()
     }
 
     fn exec(&self, name: Name, params: &[(&str, &dyn ToSql)]) -> StoreResult<usize> {

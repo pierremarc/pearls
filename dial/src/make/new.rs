@@ -2,7 +2,7 @@ use crate::bot;
 use std::time;
 
 pub fn new(
-    handler: &mut bot::CommandHandler,
+    handler: &mut bot::Context,
     username: String,
     project: String,
 ) -> Option<(String, String)> {

@@ -47,7 +47,7 @@ fn make_notes_html(notes: &Vec<NoteRecord>) -> Element {
     }
 }
 
-pub fn digest(handler: &mut bot::CommandHandler, project: String) -> Option<(String, String)> {
+pub fn digest(handler: &mut bot::Context, project: String) -> Option<(String, String)> {
     match select_project(handler, &project) {
         Err(candidates) => Some((candidates.as_text(""), candidates.as_html(""))),
         Ok(_) => match handler.store.select_project(project.clone()) {
@@ -113,8 +113,8 @@ pub fn digest(handler: &mut bot::CommandHandler, project: String) -> Option<(Str
                     .unwrap_or((format!("{} done", done), code(format!("done: {}", done))));
 
                 let cal_url = format!(
-                    "http://{}/{}/calendar/{}",
-                    handler.host, handler.room_id, project
+                    "{}/{}/calendar/{}",
+                    handler.base_url, handler.room_id, project
                 );
                 let (cal_string, cal_html) = (
                     format!("calendar: {}", cal_url),

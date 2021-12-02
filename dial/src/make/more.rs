@@ -3,7 +3,7 @@ use shell::store::TaskRecord;
 use std::time;
 
 pub fn more(
-    handler: &mut bot::CommandHandler,
+    handler: &mut bot::Context,
     user: String,
     duration: time::Duration,
 ) -> Option<(String, String)> {

@@ -1,6 +1,6 @@
 [package]
 name = "matrix_bot_api"
-version = "0.4.0"
+version = "0.5.1"
 authors = ["zwieberl <donko@posteo.de>"]
 description = """API for writing a bot for the Matrix messaging protocol"""
 license = "MIT"
@@ -10,11 +10,12 @@ edition = "2018"
 
 [dependencies]
 fractal-matrix-api = "4.2.0"
+serde_json = "1"
 
 [dependencies.chrono]
 features = ["serde"]
 version = "0.4.8"
 
 [dev-dependencies]
-config = "0.10.1"
+config = "0.9.3"
 rand = "0.7.0"

@@ -1,7 +1,7 @@
 use crate::bot;
 use std::time;
 
-pub fn stop(handler: &mut bot::CommandHandler, user: String) -> Option<(String, String)> {
+pub fn stop(handler: &mut bot::Context, user: String) -> Option<(String, String)> {
     let pendings = handler
         .store
         .select_current_task_for(user.clone())

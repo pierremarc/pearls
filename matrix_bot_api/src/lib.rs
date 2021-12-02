@@ -20,7 +20,7 @@
 //! Thus a message can be handled by multiple handlers as well (for example for "help").
 //!
 //! # Example
-//! ```no-run
+//! ```
 //! extern crate matrix_bot_api;
 //! use matrix_bot_api::{MatrixBot, MessageType};
 //! use matrix_bot_api::handlers::{StatelessHandler, HandleResult};
@@ -49,6 +49,9 @@
 //! [`StatelessHandler`]: handlers/stateless_handler/struct.StatelessHandler.html
 use chrono::prelude::*;
 
+use serde_json::json;
+use serde_json::value::Value as JsonValue;
+
 use fractal_matrix_api::backend::BKCommand;
 use fractal_matrix_api::backend::BKResponse;
 use fractal_matrix_api::backend::Backend;
@@ -66,6 +69,7 @@ use handlers::{HandleResult, MessageHandler};
 pub enum MessageType {
     RoomNotice,
     TextMessage,
+    Image,
 }
 
 pub struct MatrixBot {
@@ -73,6 +77,7 @@ pub struct MatrixBot {
     rx: Receiver<BKResponse>,
     uid: Option<String>,
     verbose: bool,
+    update_read_marker: bool,
     handlers: Vec<Box<dyn MessageHandler + Send>>,
 }
 
@@ -94,7 +99,17 @@ impl MatrixBot {
             rx,
             uid: None,
             verbose: false,
+            update_read_marker: true,
             handlers: vec![Box::new(handler)],
+        }
+    }
+
+    /// Create a copy of the internal ActiveBot instance for sending messages
+    pub fn get_activebot_clone(&self) -> ActiveBot {
+        ActiveBot {
+            backend: self.backend.clone(),
+            uid: self.uid.clone(),
+            verbose: self.verbose,
         }
     }
 
@@ -114,6 +129,12 @@ impl MatrixBot {
         self.verbose = verbose;
     }
 
+    /// If true, bot will continually update its read marker
+    /// Default: true
+    pub fn set_update_read_marker(&mut self, update_read_marker: bool) {
+        self.update_read_marker = update_read_marker;
+    }
+
     /// Blocking call that runs as long as the Bot is running.
     /// Will call for each incoming text-message the given MessageHandler.
     /// Bot will automatically join all rooms it is invited to.
@@ -128,11 +149,7 @@ impl MatrixBot {
             ))
             .unwrap();
 
-        let mut active_bot = ActiveBot {
-            backend: self.backend.clone(),
-            uid: self.uid.clone(),
-            verbose: self.verbose,
-        };
+        let mut active_bot = self.get_activebot_clone();
 
         for handler in self.handlers.iter_mut() {
             handler.init_handler(&active_bot);
@@ -153,7 +170,7 @@ impl MatrixBot {
         }
 
         match resp {
-            BKResponse::UpdateRooms(x) => self.handle_rooms(x),
+            BKResponse::UpdateRooms(x) => self.handle_rooms(x, active_bot),
             //BKResponse::Rooms(x, _) => self.handle_rooms(x),
             BKResponse::RoomMessages(x) => self.handle_messages(x, active_bot),
             BKResponse::Token(uid, _, _) => {
@@ -166,6 +183,7 @@ impl MatrixBot {
             BKResponse::ShutDown => {
                 return false;
             }
+            BKResponse::LoginError(x) => panic!("Error while trying to login: {:#?}", x),
             _ => (),
         }
         true
@@ -174,12 +192,14 @@ impl MatrixBot {
     fn handle_messages(&mut self, messages: Vec<Message>, active_bot: &ActiveBot) {
         for message in messages {
             /* First of all, mark all new messages as "read" */
-            self.backend
-                .send(BKCommand::MarkAsRead(
-                    message.room.clone(),
-                    message.id.clone(),
-                ))
-                .unwrap();
+            if self.update_read_marker {
+                self.backend
+                    .send(BKCommand::MarkAsRead(
+                        message.room.clone(),
+                        message.id.clone(),
+                    ))
+                    .unwrap();
+            }
 
             // It might be a command for us, if the message is text
             // and if its not from the bot itself
@@ -196,19 +216,18 @@ impl MatrixBot {
         }
     }
 
-    fn handle_rooms(&self, rooms: Vec<Room>) {
+    fn handle_rooms(&mut self, rooms: Vec<Room>, active_bot: &ActiveBot) {
         for rr in rooms {
-            println!(
-                "handle_room {} {} {}",
-                rr.id,
-                rr.membership.is_joined(),
-                rr.membership.is_invited()
-            );
-            if rr.membership.is_invited() && !rr.membership.is_joined() {
+            if rr.membership.is_invited() {
                 self.backend
                     .send(BKCommand::JoinRoom(rr.id.clone()))
                     .unwrap();
-                println!("Joining room {}", rr.id.clone());
+                for handler in self.handlers.iter_mut() {
+                    match handler.handle_join(&active_bot, &rr) {
+                        HandleResult::ContinueHandling => continue,
+                        HandleResult::StopHandling => break,
+                    }
+                }
             }
         }
     }
@@ -229,15 +248,6 @@ impl ActiveBot {
         self.backend.send(BKCommand::ShutDown).unwrap();
     }
 
-    /// Will join the given room (give room-id, not room-name)
-    pub fn join_room(&self, room_id: &str) {
-        println!("ActiveBot::join_room {}", room_id);
-        self.backend
-            .send(BKCommand::LeaveRoom(room_id.to_string()))
-            .and_then(|_| self.backend.send(BKCommand::JoinRoom(room_id.to_string())))
-            .unwrap();
-    }
-
     /// Will leave the given room (give room-id, not room-name)
     pub fn leave_room(&self, room_id: &str) {
         self.backend
@@ -251,7 +261,7 @@ impl ActiveBot {
     ///  * msgtype: Type of message (text or notice)
     pub fn send_message(&self, msg: &str, room: &str, msgtype: MessageType) {
         let html = None;
-        self.raw_send_message(msg, html, room, msgtype);
+        self.raw_send_message(msg, html, None, None, room, msgtype);
     }
     /// Sends an HTML message to a given room, with a given message-type.
     ///  * msg:     The incoming message
@@ -259,14 +269,48 @@ impl ActiveBot {
     ///  * room:    The room-id that the message should be sent to
     ///  * msgtype: Type of message (text or notice)
     pub fn send_html_message(&self, msg: &str, html: &str, room: &str, msgtype: MessageType) {
-        self.raw_send_message(msg, Some(html), room, msgtype);
+        self.raw_send_message(msg, Some(html), None, None, room, msgtype);
     }
-    fn raw_send_message(&self, msg: &str, html: Option<&str>, room: &str, msgtype: MessageType) {
+
+    /// Sends an image to a given room.
+    ///  * name: The name of the image
+    ///  * url:  The url for the image
+    ///  * room: The room-id that the message should be sent to
+    pub fn send_image(
+        &self,
+        name: &str,
+        url: &str,
+        width: i32,
+        height: i32,
+        size: i32,
+        mime_type: &str,
+        room: &str,
+    ) {
+        let raw = json!({"info": {
+            "h": height,
+            "mimetype":mime_type,
+            "size":size,
+            "w":width
+        }});
+
+        self.raw_send_message(name, None, Some(url), Some(raw), room, MessageType::Image)
+    }
+
+    fn raw_send_message(
+        &self,
+        msg: &str,
+        html: Option<&str>,
+        url: Option<&str>,
+        extra_content: Option<JsonValue>,
+        room: &str,
+        msgtype: MessageType,
+    ) {
         let uid = self.uid.clone().unwrap_or_default();
         let date = Local::now();
         let mtype = match msgtype {
             MessageType::RoomNotice => "m.notice".to_string(),
             MessageType::TextMessage => "m.text".to_string(),
+            MessageType::Image => "m.image".to_string(),
         };
 
         let (format, formatted_body) = match html {
@@ -277,6 +321,11 @@ impl ActiveBot {
             ),
         };
 
+        let u = match url {
+            None => None,
+            Some(a) => Some(a.to_string()),
+        };
+
         let m = Message {
             sender: uid,
             mtype,
@@ -284,20 +333,21 @@ impl ActiveBot {
             room: room.to_string(),
             date: Local::now(),
             thumb: None,
-            url: None,
+            url: u,
             id: get_txn_id(room, msg, &date.to_string()),
             formatted_body,
             format,
             in_reply_to: None,
             receipt: std::collections::HashMap::new(),
             redacted: false,
-            extra_content: None,
+            extra_content: extra_content,
             source: None,
         };
 
         if self.verbose {
             println!("===> sending: {:?}", m);
         }
+
         self.backend.send(BKCommand::SendMsg(m)).unwrap();
     }
 }

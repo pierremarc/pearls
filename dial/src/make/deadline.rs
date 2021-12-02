@@ -4,7 +4,7 @@ use std::time;
 use super::common::select_project;
 
 pub fn deadline(
-    handler: &mut bot::CommandHandler,
+    handler: &mut bot::Context,
     project: String,
     d: time::SystemTime,
 ) -> Option<(String, String)> {

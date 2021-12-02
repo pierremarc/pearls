@@ -15,7 +15,7 @@ impl Candidates {
         self.0
             .iter()
             .take(n)
-            .map(|(name, score)| name.clone())
+            .map(|(name, _score)| name.clone())
             .collect()
     }
 
@@ -62,7 +62,7 @@ fn get_project_name_parts(project_name: &str) -> Option<(String, String)> {
     })
 }
 
-fn get_candidates(handler: &mut bot::CommandHandler, project: &str) -> Candidates {
+fn get_candidates(handler: &mut bot::Context, project: &str) -> Candidates {
     match (
         get_project_name_parts(project),
         handler.store.select_all_project_info(),
@@ -83,16 +83,12 @@ fn get_candidates(handler: &mut bot::CommandHandler, project: &str) -> Candidate
                 .collect();
 
             names.sort_by_key(|(_, score)| *score);
-            // names.iter().take(5).map(|(name, _)| name.clone()).collect()
             Candidates(names, Some(project.into()))
         }
     }
 }
 
-pub fn select_project(
-    handler: &mut bot::CommandHandler,
-    name: &str,
-) -> Result<ProjectRecord, Candidates> {
+pub fn select_project(handler: &mut bot::Context, name: &str) -> Result<ProjectRecord, Candidates> {
     handler
         .store
         .select_project_info(name.into())
@@ -110,10 +106,7 @@ fn project_list_string(projects: &Vec<&ProjectRecord>) -> String {
         .join("\n")
 }
 
-pub fn check_meta(
-    handler: &mut bot::CommandHandler,
-    project: &ProjectRecord,
-) -> Option<(String, String)> {
+pub fn check_meta(handler: &mut bot::Context, project: &ProjectRecord) -> Option<(String, String)> {
     match project.is_meta {
         false => None,
         true => handler

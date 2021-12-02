@@ -4,7 +4,7 @@ use std::time;
 use super::common::{check_meta, select_project};
 
 pub fn start(
-    handler: &mut bot::CommandHandler,
+    handler: &mut bot::Context,
     user: String,
     duration: time::Duration,
     project_name: String,

@@ -2,7 +2,7 @@ use super::common::select_project;
 use crate::bot;
 
 pub fn note(
-    handler: &mut bot::CommandHandler,
+    handler: &mut bot::Context,
     username: String,
     project: String,
     content: String,

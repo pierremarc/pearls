@@ -1,4 +1,5 @@
 pub use fractal_matrix_api::types::Message;
+use fractal_matrix_api::types::Room;
 
 /// What to do after finished handling a message
 pub enum HandleResult {
@@ -19,6 +20,11 @@ pub trait MessageHandler {
     /// Will be called for every text message send to a room the bot is in
     fn handle_message(&mut self, bot: &ActiveBot, message: &Message) -> HandleResult;
 
+    /// Will be called for every join event
+    fn handle_join(&mut self, _bot: &ActiveBot, _room: &Room) -> HandleResult {
+        HandleResult::ContinueHandling
+    }
+
     /// Will be called once the bot has started
     fn init_handler(&mut self, _bot: &ActiveBot) {}
 }
@@ -32,7 +38,8 @@ pub trait MessageHandler {
 pub fn extract_command<'a>(message: &'a str, prefix: &str) -> Option<&'a str> {
     if message.starts_with(prefix) {
         let new_start = prefix.len();
-        return message[new_start..].split_whitespace().next();
+        let key = message[new_start..].split_whitespace().next().unwrap_or("");
+        return Some(&key);
     }
     None
 }

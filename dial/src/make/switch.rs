@@ -4,7 +4,7 @@ use std::time;
 use super::common::select_project;
 
 pub fn switch(
-    handler: &mut bot::CommandHandler,
+    handler: &mut bot::Context,
     user: String,
     project: String,
     task: String,

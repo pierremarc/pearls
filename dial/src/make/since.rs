@@ -4,7 +4,7 @@ use shell::util::{human_duration, make_table_row};
 use std::time;
 
 pub fn since(
-    handler: &mut bot::CommandHandler,
+    handler: &mut bot::Context,
     user: String,
     since: time::SystemTime,
 ) -> Option<(String, String)> {

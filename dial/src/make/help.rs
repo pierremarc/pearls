@@ -7,7 +7,7 @@ const DATE_HELP: &str = "
     The separatore can be either '-', '/' or '.'.
 ";
 
-fn make_text(handler: &mut bot::CommandHandler) -> String {
+fn make_text(handler: &mut bot::Context) -> String {
     format!("
         !ping
             check if the bot's still alive
@@ -46,10 +46,10 @@ fn make_text(handler: &mut bot::CommandHandler) -> String {
             a summary of your tasks since date
 
         A timeline is visible at http://{}/{}/timeline
-        ", DATE_HELP, DATE_HELP, handler.host, handler.room_id)
+        ", DATE_HELP, DATE_HELP, handler.base_url, handler.room_id)
 }
 
-fn make_html(handler: &mut bot::CommandHandler) -> String {
+fn make_html(handler: &mut bot::Context) -> String {
     div(vec![
         h4("!ping"),
         paragraph("check if the bot's still alive"),
@@ -130,13 +130,13 @@ fn make_html(handler: &mut bot::CommandHandler) -> String {
         ]),
         paragraph("a summary of your tasks since date."),
         div(vec![
-            anchor("TIMELINE").set("href", format!("http://{}/{}/timeline
-        ", handler.host, handler.room_id))
+            anchor("TIMELINE").set("href", format!("{}/{}/timeline
+        ", handler.base_url, handler.room_id))
         ])
         ])
         .as_string()
 }
 
-pub fn help(handler: &mut bot::CommandHandler) -> Option<(String, String)> {
+pub fn help(handler: &mut bot::Context) -> Option<(String, String)> {
     Some((make_text(handler), make_html(handler)))
 }

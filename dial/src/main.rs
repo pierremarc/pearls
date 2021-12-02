@@ -9,11 +9,18 @@ mod bot;
 mod make;
 mod notif;
 
-fn run_bot(homeserver: &str, room_id: &str, username: &str, password: &str, log: &str, host: &str) {
+fn run_bot(
+    homeserver: &str,
+    username: &str,
+    password: &str,
+    log: &str,
+    http_address: &str,
+    base_url: &str,
+) {
     let log_path = Path::new(log);
-    let rx = bot::start_bot(&log_path, homeserver, room_id, username, password, host);
+    let rx = bot::start_bot(&log_path, homeserver, username, password, base_url);
 
-    http::start_http(&log_path, host, room_id);
+    http::start_http(&log_path, http_address);
 
     for message in rx.iter() {
         println!("{}", message);
@@ -25,14 +32,7 @@ fn main() {
         .short("h")
         .long("homeserver")
         .value_name("homeserver")
-        .help("Host to connect to")
-        .takes_value(true);
-
-    let room = Arg::with_name("room")
-        .short("r")
-        .long("room")
-        .value_name("room")
-        .help("Room to join")
+        .help("Home server to connect to")
         .takes_value(true);
 
     let username = Arg::with_name("username")
@@ -49,46 +49,53 @@ fn main() {
         .help("Password")
         .takes_value(true);
 
-    let log_path = Arg::with_name("log")
+    let log_dir = Arg::with_name("log_dir")
         .short("l")
-        .long("log")
-        .value_name("log")
-        .help("Path to sqlite file (will be created if not exist)")
+        .long("log_dir")
+        .value_name("log_dir")
+        .help("Path to a directory where sqlite files will be stored")
         .takes_value(true);
 
-    let http_host = Arg::with_name("http_host")
+    let base_url = Arg::with_name("base_url")
+        .short("b")
+        .long("base_url")
+        .value_name("base_url")
+        .help("base URL of the HTTP server")
+        .takes_value(true);
+
+    let http_address = Arg::with_name("http_address")
         .short("a")
-        .long("address")
-        .value_name("http_host")
-        .help("http address")
+        .long("http_address")
+        .value_name("http_address")
+        .help("Socket address")
         .takes_value(true);
 
     let matches = App::new("Pearls")
         .version("0.1")
         .about("Chat your time")
         .arg(homeserver)
-        .arg(room)
         .arg(username)
         .arg(password)
-        .arg(log_path)
-        .arg(http_host)
+        .arg(log_dir)
+        .arg(http_address)
+        .arg(base_url)
         .get_matches();
 
     match (
         matches.value_of("homeserver"),
-        matches.value_of("room"),
         matches.value_of("username"),
         matches.value_of("password"),
-        matches.value_of("http_host"),
+        matches.value_of("http_address"),
+        matches.value_of("base_url"),
     ) {
-        (Some(hs), Some(rs), Some(us), Some(pa), Some(ho)) => {
+        (Some(hs), Some(us), Some(pa), Some(ha), Some(bu)) => {
             run_bot(
                 hs,
-                rs,
                 us,
                 pa,
-                matches.value_of("log").unwrap_or("pearls.sqlite"),
-                ho,
+                matches.value_of("log_dir").unwrap_or("."),
+                ha,
+                bu,
             );
         }
         _ => println!("Missing homeserver or username or password"),

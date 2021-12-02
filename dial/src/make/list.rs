@@ -2,10 +2,10 @@ use crate::bot;
 use shell::util::{display_username, human_duration};
 use std::time;
 
-pub fn list(handler: &mut bot::CommandHandler) -> Option<(String, String)> {
+pub fn list(handler: &mut bot::Context) -> Option<(String, String)> {
     let now = time::SystemTime::now();
 
-    let timeline_url = format!("http://{}/{}/timeline", handler.host, handler.room_id);
+    // let timeline_url = format!("{}/{}/timeline", handler.host, handler.room_id);
 
     match handler.store.select_current_task() {
         Ok(recs) if recs.len() > 0 => Some((

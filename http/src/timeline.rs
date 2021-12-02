@@ -1,9 +1,9 @@
 use html::{
-    anchor, body, details, div, em, h1, h2, head, html, meta, no_display, paragraph, span, style,
-    summary, with_doctype, Element, Empty,
+    anchor, body, details, div, em, h2, head, html, no_display, paragraph, span, style, summary,
+    with_doctype, Element, Empty,
 };
 use shell::{
-    store::{AggregatedTaskRecord, NoteRecord, ProjectRecord, StoreError},
+    store::{AggregatedTaskRecord, ConnectedStore, NoteRecord, ProjectRecord, StoreError},
     util::date_time_from_st,
 };
 use std::{
@@ -13,7 +13,7 @@ use std::{
 };
 use warp::Filter;
 
-use crate::{with_base_path, with_store, ArcStore};
+use crate::common::{with_store, ArcStore};
 
 type TimelineProject = (ProjectRecord, std::time::Duration, Vec<NoteRecord>);
 
@@ -273,8 +273,7 @@ fn get_done(tasks: Vec<AggregatedTaskRecord>) -> std::time::Duration {
         })
 }
 
-fn get_projects(s: ArcStore) -> Result<Vec<TimelineProject>, StoreError> {
-    let store = s.lock().expect("hmmm");
+fn get_projects(store: &mut ConnectedStore) -> Result<Vec<TimelineProject>, StoreError> {
     let projects = store.select_all_project_info().map(|rows| {
         let mut active_projects: Vec<TimelineProject> = rows
             .iter()
@@ -330,70 +329,83 @@ fn meta_class(is_meta: bool, el: Element) -> Element {
     }
 }
 
-async fn timeline_handler(s: ArcStore, base_path: String) -> Result<impl warp::Reply, Infallible> {
+async fn timeline_handler(
+    token: String,
+    arc_store: crate::common::ArcStore,
+) -> Result<impl warp::Reply, Infallible> {
     let css = style(String::from(include_str!("timeline.css"))).set("type", "text/css");
+    let base_path = format!("/{}/", token.clone());
+    if let Ok(mut store) = arc_store.lock() {
+        if let Ok(connected) = store.connect(&token) {
+            return match get_projects(connected) {
+                Err(_) => Ok(warp::reply::html(with_doctype(html([
+                    head(css),
+                    body(div("error: no projects found")),
+                ])))),
+                Ok(projects) => {
+                    let elements: Vec<Element> = projects
+                        .iter()
+                        .map(|(p, done, notes)| {
+                            meta_class(
+                                p.is_meta,
+                                match (p.end_time, p.provision) {
+                                    (Some(end), Some(provision)) => make_full(
+                                        &p.name,
+                                        base_path.clone(),
+                                        &end,
+                                        &provision,
+                                        done,
+                                        p.completed,
+                                        notes,
+                                    ),
+                                    (None, Some(provision)) => make_with_provision(
+                                        &p.name,
+                                        base_path.clone(),
+                                        &provision,
+                                        done,
+                                        p.completed,
+                                        notes,
+                                    ),
+                                    (Some(end), None) => make_with_end(
+                                        &p.name,
+                                        base_path.clone(),
+                                        &end,
+                                        done,
+                                        p.completed,
+                                        notes,
+                                    ),
+                                    (None, None) => make_bare(
+                                        &p.name,
+                                        base_path.clone(),
+                                        done,
+                                        p.completed,
+                                        notes,
+                                    ),
+                                },
+                            )
+                        })
+                        .collect();
 
-    match get_projects(s) {
-        Err(_) => Ok(warp::reply::html(with_doctype(html([
-            head(css),
-            body(div("error: no projects found")),
-        ])))),
-        Ok(projects) => {
-            let elements: Vec<Element> = projects
-                .iter()
-                .map(|(p, done, notes)| {
-                    meta_class(
-                        p.is_meta,
-                        match (p.end_time, p.provision) {
-                            (Some(end), Some(provision)) => make_full(
-                                &p.name,
-                                base_path.clone(),
-                                &end,
-                                &provision,
-                                done,
-                                p.completed,
-                                notes,
-                            ),
-                            (None, Some(provision)) => make_with_provision(
-                                &p.name,
-                                base_path.clone(),
-                                &provision,
-                                done,
-                                p.completed,
-                                notes,
-                            ),
-                            (Some(end), None) => make_with_end(
-                                &p.name,
-                                base_path.clone(),
-                                &end,
-                                done,
-                                p.completed,
-                                notes,
-                            ),
-                            (None, None) => {
-                                make_bare(&p.name, base_path.clone(), done, p.completed, notes)
-                            }
-                        },
-                    )
-                })
-                .collect();
-
-            Ok(warp::reply::html(with_doctype(html([
-                head(css),
-                body(div(elements).class("projects")),
-            ]))))
+                    Ok(warp::reply::html(with_doctype(html([
+                        head(css),
+                        body(div(elements).class("projects")),
+                    ]))))
+                }
+            };
         }
     }
+    Ok(warp::reply::html(with_doctype(html([
+        head(css),
+        body(div("error: no projects found")),
+    ]))))
 }
 
 pub fn timeline(
     s: ArcStore,
-    token: String,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("timeline")
+    warp::path!(String / "timeline")
         .and(warp::get())
         .and(with_store(s))
-        .and(with_base_path(token))
         .and_then(timeline_handler)
 }
 

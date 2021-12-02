@@ -2,7 +2,7 @@ use super::common::select_project;
 use crate::bot;
 
 pub fn meta(
-    handler: &mut bot::CommandHandler,
+    handler: &mut bot::Context,
     username: String,
     project_name: String,
 ) -> Option<(String, String)> {

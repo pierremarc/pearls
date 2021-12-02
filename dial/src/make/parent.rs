@@ -2,7 +2,7 @@ use super::common::select_project;
 use crate::bot;
 
 pub fn parent(
-    handler: &mut bot::CommandHandler,
+    handler: &mut bot::Context,
     username: String,
     child_name: String,
     parent_name: String,

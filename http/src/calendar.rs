@@ -1,4 +1,4 @@
-use crate::{with_store, ArcStore};
+use crate::common::{with_store, ArcStore};
 use chrono::Datelike;
 use html::{body, div, h1, head, html, span, style, with_doctype, Element, Empty};
 use shell::cal::{day_of_week, month_name, Calendar, CalendarItem, LocalTime};
@@ -97,54 +97,58 @@ fn cal_project(recs: &Vec<TaskRecord>) -> Element {
     res + (b + w)
 }
 
-fn cal(store: ArcStore, project: String) -> Option<String> {
-    if let Ok(store) = store.lock() {
-        let available = store
-            .select_project_info(project.clone())
-            .map(|rec| rec.provision.map_or(0, |d| dur(&d)) / (1000 * 60 * 60))
-            .unwrap_or(0);
+fn cal(token: String, store: ArcStore, project: String) -> Option<String> {
+    if let Ok(mut store) = store.lock() {
+        if let Ok(connected) = store.connect(&token) {
+            let available = connected
+                .select_project_info(project.clone())
+                .map(|rec| rec.provision.map_or(0, |d| dur(&d)) / (1000 * 60 * 60))
+                .unwrap_or(0);
 
-        match store.select_project_detail(project.clone()) {
-            Ok(ref recs) => {
-                let names = recs
-                    .iter()
-                    .fold(HashSet::<String>::new(), |mut acc, rec| {
-                        acc.insert(rec.project.clone());
-                        acc
-                    })
-                    .into_iter()
-                    .collect::<Vec<String>>()
-                    .join(", ");
+            match connected.select_project_detail(project.clone()) {
+                Ok(ref recs) => {
+                    let names = recs
+                        .iter()
+                        .fold(HashSet::<String>::new(), |mut acc, rec| {
+                            acc.insert(rec.project.clone());
+                            acc
+                        })
+                        .into_iter()
+                        .collect::<Vec<String>>()
+                        .join(", ");
 
-                let done = recs.iter().fold(0, |acc, rec| {
-                    acc + dur(&rec
-                        .end_time
-                        .duration_since(rec.start_time)
-                        .unwrap_or(time::Duration::from_secs(0)))
-                }) / (1000 * 60 * 60);
+                    let done = recs.iter().fold(0, |acc, rec| {
+                        acc + dur(&rec
+                            .end_time
+                            .duration_since(rec.start_time)
+                            .unwrap_or(time::Duration::from_secs(0)))
+                    }) / (1000 * 60 * 60);
 
-                let cal_element = cal_project(recs);
-                let title = h1(names);
-                let subtitle = div(vec![
-                    div(vec![
-                        span(string("Done: ")),
-                        span(format!("{} hours", done)),
-                    ]),
-                    div(vec![
-                        span(string("Avail: ")),
-                        span(format!("{} hours", available)),
-                    ]),
-                ])
-                .set("class", "summary");
-                let css = style(String::from(include_str!("cal.css"))).set("type", "text/css");
-                let html_string = with_doctype(html(vec![
-                    head(css),
-                    body(vec![title, subtitle, cal_element]),
-                ]));
+                    let cal_element = cal_project(recs);
+                    let title = h1(names);
+                    let subtitle = div(vec![
+                        div(vec![
+                            span(string("Done: ")),
+                            span(format!("{} hours", done)),
+                        ]),
+                        div(vec![
+                            span(string("Avail: ")),
+                            span(format!("{} hours", available)),
+                        ]),
+                    ])
+                    .set("class", "summary");
+                    let css = style(String::from(include_str!("cal.css"))).set("type", "text/css");
+                    let html_string = with_doctype(html(vec![
+                        head(css),
+                        body(vec![title, subtitle, cal_element]),
+                    ]));
 
-                Some(html_string)
+                    Some(html_string)
+                }
+                Err(err) => Some(format!("Store Error: {}", err)),
             }
-            Err(err) => Some(format!("Store Error: {}", err)),
+        } else {
+            Some("Failed to connect to DB".into())
         }
     } else {
         Some("Could Not Acquire A Lock On Store".into())
@@ -154,13 +158,15 @@ fn cal(store: ArcStore, project: String) -> Option<String> {
 pub fn calendar(
     s: ArcStore,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::path!("calendar" / String / String)
+    warp::path!(String / "calendar" / String / String)
         .and(warp::get())
         .and(with_store(s))
-        .and_then(|client: String, name: String, s: ArcStore| async move {
-            match cal(s, format!("{}/{}", client, name)) {
-                Some(body) => Ok(warp::reply::html(body)),
-                None => Err(warp::reject()),
-            }
-        })
+        .and_then(
+            |token: String, client: String, name: String, store: ArcStore| async move {
+                match cal(token, store, format!("{}/{}", client, name)) {
+                    Some(body) => Ok(warp::reply::html(body)),
+                    None => Err(warp::reject()),
+                }
+            },
+        )
 }
