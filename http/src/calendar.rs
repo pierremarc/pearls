@@ -9,7 +9,7 @@ use shell::util::{
     after_once, date_time_from_st, display_username, dur, human_duration, string, ts,
 };
 use std::collections::HashSet;
-use std::time;
+use std::time::{self, SystemTime};
 use warp::Filter;
 
 fn format_tasklist(tasks: impl Iterator<Item = TaskRecord>) -> Vec<Element> {
@@ -43,17 +43,69 @@ fn month_and_year(d: &chrono::DateTime<chrono::Local>) -> String {
     format!("{} {}", month_name(d), d.year())
 }
 
-fn make_csv_link(base_url_tabular: &str, events: &Vec<CalendarEvent<TaskRecord>>) -> Element {
+trait Interval {
+    fn start(&self) -> SystemTime;
+    fn end(&self) -> SystemTime;
+}
+
+impl Interval for TaskRecord {
+    fn start(&self) -> SystemTime {
+        self.start_time
+    }
+    fn end(&self) -> SystemTime {
+        self.end_time
+    }
+}
+impl Interval for CalendarEvent<TaskRecord> {
+    fn start(&self) -> SystemTime {
+        self.data.start_time
+    }
+    fn end(&self) -> SystemTime {
+        self.data.end_time
+    }
+}
+
+fn max<'a, I>(a: &'a I, b: &'a I) -> &'a I
+where
+    I: Interval,
+{
+    if a.end() >= b.end() {
+        a
+    } else {
+        b
+    }
+}
+
+fn min<'a, I>(a: &'a I, b: &'a I) -> &'a I
+where
+    I: Interval,
+{
+    if a.start() <= b.start() {
+        a
+    } else {
+        b
+    }
+}
+
+fn make_csv_link<I>(base_url_tabular: &str, events: &Vec<I>) -> Element
+where
+    I: Interval,
+{
     match (events.first(), events.last()) {
-        (Some(a), Some(b)) => anchor("csv").set(
-            "href",
-            format!(
-                "/{}/{}/{}",
-                base_url_tabular,
-                ts(&a.data.start_time) - 1,
-                ts(&b.data.end_time)
-            ),
-        ),
+        (Some(a), Some(b)) => {
+            let (first, last) = events
+                .iter()
+                .fold((a, b), |(a, b), e| (min(a, e), max(b, e)));
+            anchor("csv").set(
+                "href",
+                format!(
+                    "/{}/{}/{}",
+                    base_url_tabular,
+                    ts(&first.start()) - 1,
+                    ts(&last.end())
+                ),
+            )
+        }
         _ => no_display(),
     }
 }
@@ -168,6 +220,7 @@ fn cal(token: String, store: ArcStore, project: String) -> Option<String> {
                             span(string("Avail: ")),
                             span(format!("{} hours", available)),
                         ]),
+                        make_csv_link(&base_url_tabular, recs),
                     ])
                     .set("class", "summary");
                     let css = style(String::from(include_str!("cal.css"))).set("type", "text/css");

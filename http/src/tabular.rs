@@ -1,12 +1,15 @@
 use bytes::{BufMut, Bytes, BytesMut};
 use csv::Writer;
-use shell::{store::TaskRecord, util::st_from_ts};
+use shell::{
+    store::TaskRecord,
+    util::{st_from_ts, st_to_datestring},
+};
 use std::error::Error;
 use warp::{http, Filter};
 
 use crate::common::{with_store, ArcStore};
 
-fn format_duration(millis: i64) -> String {
+fn format_duration_time(millis: i64) -> String {
     let minutes = millis / 1000 / 60;
     let hours = minutes / 60;
     let remaining_minutes = if hours > 0 {
@@ -15,6 +18,17 @@ fn format_duration(millis: i64) -> String {
         minutes
     };
     format!("{:02}:{:02}:00", hours, remaining_minutes)
+}
+
+fn format_duration_decimal(millis: i64) -> String {
+    let minutes = millis / 1000 / 60;
+    let hours = minutes / 60;
+    let remaining_minutes = if hours > 0 {
+        minutes % (hours * 60)
+    } else {
+        minutes
+    };
+    format!("{:02}.{:02}", hours, remaining_minutes)
 }
 
 struct BytesWrapper(Bytes);
@@ -39,17 +53,18 @@ pub fn make_table(records: &Vec<TaskRecord>) -> Vec<Vec<String>> {
     records
         .iter()
         .map(|record| {
+            let duration = record
+                .end_time
+                .duration_since(record.start_time)
+                .map(|d| shell::util::dur(&d))
+                .unwrap_or(0i64);
             vec![
                 record.username.clone(),
                 record.project.clone(),
                 record.task.clone(),
-                format_duration(
-                    record
-                        .end_time
-                        .duration_since(record.start_time)
-                        .map(|d| shell::util::dur(&d))
-                        .unwrap_or(0i64),
-                ),
+                st_to_datestring(&record.start_time),
+                format_duration_time(duration),
+                format_duration_decimal(duration),
             ]
         })
         .collect()
@@ -60,7 +75,14 @@ fn to_csv(records: Vec<TaskRecord>) -> Result<BytesWrapper, Box<dyn Error>> {
     let mut bytes_writer = buf.writer();
     {
         let mut writer = Writer::from_writer(&mut bytes_writer);
-        writer.write_record(&["username", "project", "task", "duration"])?;
+        writer.write_record(&[
+            "username",
+            "project",
+            "task",
+            "date",
+            "duration (time)",
+            "duration (decimal)",
+        ])?;
         for record in make_table(&records) {
             writer.write_record(record)?;
         }
@@ -80,6 +102,11 @@ fn collect_records(
     let project_name = format!("{}/{}", client, name);
     let start_time = st_from_ts(start);
     let end_time = st_from_ts(end);
+    println!(
+        "TABULAR {}  -->  {}",
+        st_to_datestring(&start_time),
+        st_to_datestring(&end_time)
+    );
     if let Ok(mut store) = store.lock() {
         if let Ok(connected) = store.connect(&token) {
             return match connected.select_project_detail(project_name) {
