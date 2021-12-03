@@ -1,9 +1,13 @@
 use crate::common::{with_store, ArcStore};
 use chrono::Datelike;
-use html::{body, div, h1, head, html, span, style, with_doctype, Element, Empty};
-use shell::cal::{day_of_week, month_name, Calendar, CalendarItem, LocalTime};
+use html::{
+    anchor, body, div, h1, head, html, no_display, span, style, with_doctype, Element, Empty,
+};
+use shell::cal::{day_of_week, month_name, Calendar, CalendarEvent, CalendarItem, LocalTime};
 use shell::store::TaskRecord;
-use shell::util::{after_once, date_time_from_st, display_username, dur, human_duration, string};
+use shell::util::{
+    after_once, date_time_from_st, display_username, dur, human_duration, string, ts,
+};
 use std::collections::HashSet;
 use std::time;
 use warp::Filter;
@@ -39,7 +43,22 @@ fn month_and_year(d: &chrono::DateTime<chrono::Local>) -> String {
     format!("{} {}", month_name(d), d.year())
 }
 
-fn cal_project(recs: &Vec<TaskRecord>) -> Element {
+fn make_csv_link(base_url_tabular: &str, events: &Vec<CalendarEvent<TaskRecord>>) -> Element {
+    match (events.first(), events.last()) {
+        (Some(a), Some(b)) => anchor("csv").set(
+            "href",
+            format!(
+                "/{}/{}/{}",
+                base_url_tabular,
+                ts(&a.data.start_time) - 1,
+                ts(&b.data.end_time)
+            ),
+        ),
+        _ => no_display(),
+    }
+}
+
+fn cal_project(recs: &Vec<TaskRecord>, base_url_tabular: &str) -> Element {
     let mut cal: Calendar<TaskRecord> = Calendar::new();
     for t in recs.into_iter() {
         cal.push(
@@ -59,18 +78,32 @@ fn cal_project(recs: &Vec<TaskRecord>) -> Element {
     let (res, b, w) = cal
         .iter()
         .fold((main, cur_month, cur_week), |(b, m, w), item| match item {
-            CalendarItem::Month(d) => fm.map(
+            CalendarItem::Month(d, events) => fm.map(
                 (b, m, w),
-                |(b, _, w)| (b, div(h1(month_and_year(&d))).set("class", "month"), w),
+                |(b, _, w)| {
+                    (
+                        b,
+                        div([
+                            h1(month_and_year(&d)),
+                            make_csv_link(base_url_tabular, &events),
+                        ])
+                        .set("class", "month"),
+                        w,
+                    )
+                },
                 |(b, m, w)| {
                     (
                         b + (m + w),
-                        div(h1(month_and_year(&d))).set("class", "month"),
+                        div([
+                            h1(month_and_year(&d)),
+                            make_csv_link(base_url_tabular, &events),
+                        ])
+                        .set("class", "month"),
                         div(Empty).set("class", "week empty"),
                     )
                 },
             ),
-            CalendarItem::Week(_d) => fw.map(
+            CalendarItem::Week(_d, _events) => fw.map(
                 (b, m, w),
                 |acc| acc,
                 |(b, m, w)| {
@@ -104,7 +137,7 @@ fn cal(token: String, store: ArcStore, project: String) -> Option<String> {
                 .select_project_info(project.clone())
                 .map(|rec| rec.provision.map_or(0, |d| dur(&d)) / (1000 * 60 * 60))
                 .unwrap_or(0);
-
+            let base_url_tabular = format!("{}/tabular/{}", &token, &project);
             match connected.select_project_detail(project.clone()) {
                 Ok(ref recs) => {
                     let names = recs
@@ -124,7 +157,7 @@ fn cal(token: String, store: ArcStore, project: String) -> Option<String> {
                             .unwrap_or(time::Duration::from_secs(0)))
                     }) / (1000 * 60 * 60);
 
-                    let cal_element = cal_project(recs);
+                    let cal_element = cal_project(recs, &base_url_tabular);
                     let title = h1(names);
                     let subtitle = div(vec![
                         div(vec![

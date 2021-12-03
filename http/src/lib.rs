@@ -5,6 +5,7 @@ use warp::Filter;
 
 mod calendar;
 mod common;
+mod tabular;
 mod timeline;
 
 pub fn start_http(path: &Path, host: &str) {
@@ -13,8 +14,9 @@ pub fn start_http(path: &Path, host: &str) {
     let arc_store = Arc::new(Mutex::new(store));
 
     std::thread::spawn(move || {
-        let routes =
-            calendar::calendar(arc_store.clone()).or(timeline::timeline(arc_store.clone()));
+        let routes = calendar::calendar(arc_store.clone())
+            .or(timeline::timeline(arc_store.clone()))
+            .or(tabular::tabular(arc_store.clone()));
         // let runtime = tokio::runtime::Runtime::new().expect("Failed to start tokio runtime");
         let mut runtime = tokio::runtime::Builder::new()
             .basic_scheduler()

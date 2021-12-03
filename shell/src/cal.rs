@@ -286,8 +286,8 @@ where
     T: Clone,
 {
     Year(LocalTime),
-    Month(LocalTime),
-    Week(LocalTime),
+    Month(LocalTime, Vec<CalendarEvent<T>>),
+    Week(LocalTime, Vec<CalendarEvent<T>>),
     Day(LocalTime, Vec<CalendarEvent<T>>),
     EmptyDay(LocalTime, Vec<CalendarEvent<T>>),
 }
@@ -328,7 +328,7 @@ where
                     // println!("Step::Month {}", self.cur_year.in_range(start));
                     if self.cur_year.in_range(start) || self.cur_year.in_range(end) {
                         self.step = CalendarIteratorStep::Week;
-                        Some(CalendarItem::Month(start))
+                        Some(CalendarItem::Month(start, self.calendar.find(start, end)))
                     } else {
                         self.step = CalendarIteratorStep::Year;
                         self.cur_year = self.cur_year.next();
@@ -340,7 +340,7 @@ where
                 let (start, end) = self.cur_week.interval();
                 if self.cur_month.in_range(start) || self.cur_month.in_range(end) {
                     self.step = CalendarIteratorStep::Day;
-                    Some(CalendarItem::Week(start))
+                    Some(CalendarItem::Week(start, self.calendar.find(start, end)))
                 } else {
                     self.step = CalendarIteratorStep::Month;
                     self.cur_month = self.cur_month.next();
@@ -434,12 +434,12 @@ mod tests {
                     println!("\nYear({})", d.year());
                     prev_year = Some(d);
                 }
-                CalendarItem::Month(d) => {
+                CalendarItem::Month(d, _) => {
                     prev_month.map(|pd| assert_ne!(d, pd));
                     println!("\nMonth({})", month_name(&d));
                     prev_month = Some(d);
                 }
-                CalendarItem::Week(d) => {
+                CalendarItem::Week(d, _) => {
                     // prev_week.map(|pd| assert_ne!(d, pd));
                     println!("\nWeek({})", d.day());
                     prev_week = Some(d);

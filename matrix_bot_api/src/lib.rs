@@ -225,9 +225,9 @@ impl MatrixBot {
 
     fn init_rooms(&mut self, rooms: Vec<Room>, active_bot: &ActiveBot) {
         for rr in rooms {
-            self.backend
-                .send(BKCommand::JoinRoom(rr.id.clone()))
-                .unwrap();
+            // self.backend
+            //     .send(BKCommand::JoinRoom(rr.id.clone()))
+            //     .unwrap();
             for handler in self.handlers.iter_mut() {
                 match handler.handle_join(&active_bot, &rr) {
                     HandleResult::ContinueHandling => continue,

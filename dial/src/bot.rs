@@ -164,7 +164,7 @@ pub fn start_bot(
         });
 
         end_of_task(bot.get_activebot_clone(), arc_store.clone());
-        bot.set_verbose(true);
+        bot.set_verbose(false);
         bot.run(&u, &p, &h);
     });
 

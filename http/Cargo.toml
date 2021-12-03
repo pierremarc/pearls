@@ -11,4 +11,5 @@ html = { path = "../html" }
 warp = "0.2.5"
 tokio =  { version = "0.2", features = ["full"] }
 chrono = "0.4.9"
-
+csv = "1.1.6"
+bytes = "1.1.0"
