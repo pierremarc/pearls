@@ -21,14 +21,8 @@ fn format_duration_time(millis: i64) -> String {
 }
 
 fn format_duration_decimal(millis: i64) -> String {
-    let minutes = millis / 1000 / 60;
-    let hours = minutes / 60;
-    let remaining_minutes = if hours > 0 {
-        minutes % (hours * 60)
-    } else {
-        minutes
-    };
-    format!("{:02}.{:02}", hours, remaining_minutes)
+    let hours = (millis / 1000) as f32 / (60.0 * 60.0);
+    format!("{:0<2.2}", hours)
 }
 
 struct BytesWrapper(Bytes);
