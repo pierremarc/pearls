@@ -290,6 +290,7 @@ macro_rules! known {
 known!(html);
 known!(meta);
 known!(head);
+known!(title);
 known!(body);
 known!(div);
 known!(span);
