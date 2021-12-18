@@ -1,4 +1,3 @@
-use landing::landing;
 use shell::store::Store;
 use std::sync::{Arc, Mutex};
 use std::{net::SocketAddr, path::Path};
@@ -19,7 +18,8 @@ pub fn start_http(path: &Path, host: &str) {
         let routes = calendar::calendar(arc_store.clone())
             .or(timeline::timeline(arc_store.clone()))
             .or(tabular::tabular(arc_store.clone()))
-            .or(landing());
+            .or(landing::room_landing(arc_store.clone()))
+            .or(landing::landing());
         // let runtime = tokio::runtime::Runtime::new().expect("Failed to start tokio runtime");
         let mut runtime = tokio::runtime::Builder::new()
             .basic_scheduler()
