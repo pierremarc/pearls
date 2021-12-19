@@ -53,6 +53,12 @@ impl Context {
     }
 }
 
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub type SharedContext = Rc<RefCell<Context>>;
 
 pub fn new_context() -> SharedContext {

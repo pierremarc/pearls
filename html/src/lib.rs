@@ -55,11 +55,23 @@ pub struct Element {
 
 // https://developer.mozilla.org/en-US/docs/Glossary/empty_element
 fn is_empty(tag: &'static str) -> bool {
-    match tag {
-        "area" | "base" | "br" | "col" | "embed" | "hr" | "img" | "input" | "link" | "meta"
-        | "param" | "source" | "track" | "wbr" => true,
-        _ => false,
-    }
+    matches!(
+        tag,
+        "area"
+            | "base"
+            | "br"
+            | "col"
+            | "embed"
+            | "hr"
+            | "img"
+            | "input"
+            | "link"
+            | "meta"
+            | "param"
+            | "source"
+            | "track"
+            | "wbr"
+    )
 }
 
 impl Element {

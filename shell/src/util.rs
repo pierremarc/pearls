@@ -55,13 +55,13 @@ pub fn dur(d: &time::Duration) -> i64 {
 pub fn ts(t: &time::SystemTime) -> i64 {
     dur(&t
         .duration_since(time::UNIX_EPOCH)
-        .unwrap_or(time::Duration::from_millis(0)))
+        .unwrap_or_else(|_| time::Duration::from_millis(0)))
 }
 
 pub fn date_time_from_st(t: &time::SystemTime) -> chrono::DateTime<chrono::Local> {
     let duration = t
         .duration_since(time::UNIX_EPOCH)
-        .unwrap_or(time::Duration::from_millis(0));
+        .unwrap_or_else(|_| time::Duration::from_millis(0));
     chrono::Local.timestamp(duration.as_secs().try_into().unwrap_or(i64::max_value()), 0)
 }
 
@@ -112,6 +112,12 @@ impl AfterOnce {
             self.0 = true;
             init(a)
         }
+    }
+}
+
+impl Default for AfterOnce {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

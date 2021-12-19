@@ -157,7 +157,7 @@ fn project_title(name: &str, base_path: String, opt_completed: Option<SystemTime
     }
 }
 
-fn make_notes(notes: &Vec<NoteRecord>) -> Element {
+fn make_notes(notes: &[NoteRecord]) -> Element {
     match notes.len() {
         0 => no_display(),
         _ => details([
@@ -186,7 +186,7 @@ fn make_full(
     provision: &Duration,
     done: &Duration,
     opt_completed: Option<SystemTime>,
-    notes: &Vec<NoteRecord>,
+    notes: &[NoteRecord],
 ) -> Element {
     div([
         make_gauge(provision, done),
@@ -209,7 +209,7 @@ fn make_with_provision(
     provision: &Duration,
     done: &Duration,
     opt_completed: Option<SystemTime>,
-    notes: &Vec<NoteRecord>,
+    notes: &[NoteRecord],
 ) -> Element {
     div([
         make_gauge(provision, done),
@@ -231,7 +231,7 @@ fn make_with_end(
     end: &SystemTime,
     done: &Duration,
     opt_completed: Option<SystemTime>,
-    notes: &Vec<NoteRecord>,
+    notes: &[NoteRecord],
 ) -> Element {
     div([
         make_gauge(done, done),
@@ -251,7 +251,7 @@ fn make_bare(
     base_path: String,
     done: &Duration,
     opt_completed: Option<SystemTime>,
-    notes: &Vec<NoteRecord>,
+    notes: &[NoteRecord],
 ) -> Element {
     div([
         make_gauge(done, done),
@@ -274,8 +274,6 @@ fn get_done(tasks: Vec<AggregatedTaskRecord>) -> std::time::Duration {
 }
 
 fn get_projects(store: &mut ConnectedStore) -> Result<Vec<TimelineProject>, StoreError> {
-    
-
     store.select_all_project_info().map(|rows| {
         let mut active_projects: Vec<TimelineProject> = rows
             .iter()
@@ -285,11 +283,10 @@ fn get_projects(store: &mut ConnectedStore) -> Result<Vec<TimelineProject>, Stor
                 } else {
                     let tasks = store.select_project(record.name.clone());
                     let done = tasks.map(get_done);
-                    let notes = store
-                        .select_notes(record.name.clone()).unwrap_or_default();
+                    let notes = store.select_notes(record.name.clone()).unwrap_or_default();
                     Some((
                         record.clone(),
-                        done.unwrap_or(Duration::from_secs(0)),
+                        done.unwrap_or_else(|_| Duration::from_secs(0)),
                         notes,
                     ))
                 }
@@ -301,11 +298,10 @@ fn get_projects(store: &mut ConnectedStore) -> Result<Vec<TimelineProject>, Stor
                 record.completed.map(|_| {
                     let tasks = store.select_project(record.name.clone());
                     let done = tasks.map(get_done);
-                    let notes = store
-                        .select_notes(record.name.clone()).unwrap_or_default();
+                    let notes = store.select_notes(record.name.clone()).unwrap_or_default();
                     (
                         record.clone(),
-                        done.unwrap_or(Duration::from_secs(0)),
+                        done.unwrap_or_else(|_| Duration::from_secs(0)),
                         notes,
                     )
                 })

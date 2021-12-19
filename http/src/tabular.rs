@@ -43,7 +43,7 @@ impl warp::Reply for BytesWrapper {
     }
 }
 
-pub fn make_table(records: &Vec<TaskRecord>) -> Vec<Vec<String>> {
+pub fn make_table(records: &[TaskRecord]) -> Vec<Vec<String>> {
     records
         .iter()
         .map(|record| {

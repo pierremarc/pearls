@@ -273,14 +273,14 @@ impl Store {
         });
         self.connections
             .last_mut()
-            .ok_or(StoreError::Open(db_name.into()))
+            .ok_or_else(|| StoreError::Open(db_name.into()))
     }
 
     pub fn connected(&mut self, db_name: &str) -> StoreResult<&mut ConnectedStore> {
         self.connections
             .iter_mut()
             .find(|c| c.room_id == db_name)
-            .ok_or(StoreError::Connected(db_name.into()))
+            .ok_or_else(|| StoreError::Connected(db_name.into()))
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut ConnectedStore> {

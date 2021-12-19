@@ -55,7 +55,6 @@ fn letter<'a>() -> Parser<'a, u8, u8> {
 }
 
 fn digit<'a>() -> Parser<'a, u8, u8> {
-    
     one_of(b"0123456789")
 }
 
@@ -78,10 +77,9 @@ fn fixed_int<'a>(i: usize) -> Parser<'a, u8, u32> {
 
 fn ident<'a>(ctx: SharedContext) -> Parser<'a, u8, String> {
     let char_string = (letter() | digit() | one_of(b"_-.")).repeat(1..);
-    with_error(
-        char_string.convert(String::from_utf8),
-        move || err_ident(ctx.clone()),
-    )
+    with_error(char_string.convert(String::from_utf8), move || {
+        err_ident(ctx.clone())
+    })
 }
 
 fn project_ident<'a>(ctx: SharedContext) -> Parser<'a, u8, String> {
@@ -426,7 +424,7 @@ mod tests {
     fn parse_date_iso() {
         assert_eq!(
             date(new_context()).parse("2042-05-29".as_bytes()),
-            Ok(st_from_ts(Utc.ymd(2042, 05, 29).and_hms(0, 1, 1).timestamp_millis(),).unwrap())
+            Ok(st_from_ts(Utc.ymd(2042, 5, 29).and_hms(0, 1, 1).timestamp_millis(),).unwrap())
         );
     }
     #[test]

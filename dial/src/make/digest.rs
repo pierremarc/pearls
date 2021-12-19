@@ -7,7 +7,7 @@ use shell::{
 
 use super::common::select_project;
 
-fn make_notes_string(notes: &Vec<NoteRecord>) -> String {
+fn make_notes_string(notes: &[NoteRecord]) -> String {
     match notes.len() {
         0 => String::new(),
         _ => notes
@@ -28,7 +28,7 @@ fn make_notes_string(notes: &Vec<NoteRecord>) -> String {
     }
 }
 
-fn make_notes_html(notes: &Vec<NoteRecord>) -> Element {
+fn make_notes_html(notes: &[NoteRecord]) -> Element {
     match notes.len() {
         0 => no_display(),
         _ => details(div(notes
@@ -55,7 +55,8 @@ pub fn digest(handler: &mut bot::Context, project: String) -> Option<(String, St
                 let available = handler.store.select_project_info(project.clone());
                 let note_records = handler
                     .store
-                    .select_notes(project.clone()).unwrap_or_default();
+                    .select_notes(project.clone())
+                    .unwrap_or_default();
 
                 let text_notes = make_notes_string(&note_records);
                 let html_notes = make_notes_html(&note_records);

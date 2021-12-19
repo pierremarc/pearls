@@ -32,10 +32,7 @@ pub fn done(
                         .store
                         .select_latest_task_for(user.clone())
                         .map(|res| {
-                            let i = res
-                                .first()
-                                .map(|rec| rec.end_time)
-                                .unwrap_or(given_start);
+                            let i = res.first().map(|rec| rec.end_time).unwrap_or(given_start);
                             match i < given_start {
                                 true => given_start,
                                 false => i,
@@ -46,7 +43,7 @@ pub fn done(
                     let message = match start > given_start {
                         true => format!(
                         "Recorded, but adjusted to the end of your last task. Resulting in just {}",
-                        human_duration(start.elapsed().unwrap_or(time::Duration::from_millis(0)))
+                        human_duration(start.elapsed().unwrap_or_else(|_| time::Duration::from_millis(0)))
                     ),
                         false => "Well recorded.".into(),
                     };

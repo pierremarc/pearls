@@ -16,7 +16,7 @@ fn notify(
     let now = time::SystemTime::now();
     let d = end
         .duration_since(now)
-        .unwrap_or(time::Duration::from_secs(0));
+        .unwrap_or_else(|_| time::Duration::from_secs(0));
     let success_message = format!(
         "{}: Your current task will end in {}
         You can !more <duration> to continue",

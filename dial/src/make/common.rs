@@ -98,7 +98,7 @@ pub fn select_project(handler: &mut bot::Context, name: &str) -> Result<ProjectR
 const IS_META_DISCLAIMER: &str =
     "This is a meta project, you must assign work to its child projects.";
 
-fn project_list_string(projects: &Vec<&ProjectRecord>) -> String {
+fn project_list_string(projects: &[&ProjectRecord]) -> String {
     projects
         .iter()
         .map(|project| format!("→ {}", project.name))

@@ -262,6 +262,15 @@ where
     }
 }
 
+impl<T> Default for Calendar<T>
+where
+    T: Clone,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 enum CalendarIteratorStep {
     Year,
     Month,

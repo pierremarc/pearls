@@ -18,10 +18,10 @@ fn format_tasklist(tasks: impl Iterator<Item = TaskRecord>) -> Vec<Element> {
             div(vec![
                 div(format!("{}({})", display_username(&rec.username), rec.task)),
                 div(human_duration(
-                        rec.end_time
-                            .duration_since(rec.start_time)
-                            .unwrap_or(time::Duration::from_secs(0))
-                    )),
+                    rec.end_time
+                        .duration_since(rec.start_time)
+                        .unwrap_or_else(|_| time::Duration::from_secs(0)),
+                )),
             ])
             .set("class", "task")
         })
@@ -84,7 +84,7 @@ where
     }
 }
 
-fn make_csv_link<I>(base_url_tabular: &str, events: &Vec<I>) -> Element
+fn make_csv_link<I>(base_url_tabular: &str, events: &[I]) -> Element
 where
     I: Interval,
 {
@@ -107,7 +107,7 @@ where
     }
 }
 
-fn cal_project(recs: &Vec<TaskRecord>, base_url_tabular: &str) -> Element {
+fn cal_project(recs: &[TaskRecord], base_url_tabular: &str) -> Element {
     let mut cal: Calendar<TaskRecord> = Calendar::new();
     for t in recs.iter() {
         cal.push(
@@ -203,7 +203,7 @@ fn cal(token: String, store: ArcStore, project: String) -> Option<String> {
                         acc + dur(&rec
                             .end_time
                             .duration_since(rec.start_time)
-                            .unwrap_or(time::Duration::from_secs(0)))
+                            .unwrap_or_else(|_| time::Duration::from_secs(0)))
                     }) / (1000 * 60 * 60);
 
                     let cal_element = cal_project(recs, &base_url_tabular);
