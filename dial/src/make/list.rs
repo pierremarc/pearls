@@ -8,7 +8,7 @@ pub fn list(handler: &mut bot::Context) -> Option<(String, String)> {
     // let timeline_url = format!("{}/{}/timeline", handler.host, handler.room_id);
 
     match handler.store.select_current_task() {
-        Ok(recs) if recs.len() > 0 => Some((
+        Ok(recs) if !recs.is_empty() => Some((
             recs.iter()
                 .map(|rec| match rec.end_time.duration_since(now) {
                     Ok(duration) => format!(

@@ -12,7 +12,7 @@ pub fn done(
     task: String,
 ) -> Option<(String, String)> {
     let now = time::SystemTime::now();
-    let pendings = handler.store.select_current_task().unwrap_or(Vec::new());
+    let pendings = handler.store.select_current_task().unwrap_or_default();
 
     match pendings.iter().find(|rec| rec.username == user) {
         Some(rec) => Some((
@@ -35,8 +35,7 @@ pub fn done(
                             let i = res
                                 .first()
                                 .map(|rec| rec.end_time)
-                                .unwrap_or(given_start)
-                                .clone();
+                                .unwrap_or(given_start);
                             match i < given_start {
                                 true => given_start,
                                 false => i,
@@ -54,7 +53,7 @@ pub fn done(
 
                     match handler
                         .store
-                        .insert_do(user, start.clone(), now, project_name, task)
+                        .insert_do(user, start, now, project_name, task)
                     {
                         Ok(_) => Some((message, String::new())),
                         Err(err) => Some((format!("Error: {}", err), String::new())),

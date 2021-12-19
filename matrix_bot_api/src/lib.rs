@@ -174,7 +174,7 @@ impl MatrixBot {
         match resp {
             BKResponse::UpdateRooms(x) => self.handle_rooms(x, active_bot),
             BKResponse::Rooms(x, _) => {
-                if self.got_rooms == false {
+                if !self.got_rooms {
                     self.got_rooms = true;
                     self.init_rooms(x, active_bot);
                 }
@@ -214,7 +214,7 @@ impl MatrixBot {
             // This might be a command for us (only text-messages are interesting)
             if message.mtype == "m.text" && message.sender != uid {
                 for handler in self.handlers.iter_mut() {
-                    match handler.handle_message(&active_bot, &message) {
+                    match handler.handle_message(active_bot, &message) {
                         HandleResult::ContinueHandling => continue,
                         HandleResult::StopHandling => break,
                     }
@@ -229,7 +229,7 @@ impl MatrixBot {
             //     .send(BKCommand::JoinRoom(rr.id.clone()))
             //     .unwrap();
             for handler in self.handlers.iter_mut() {
-                match handler.handle_join(&active_bot, &rr) {
+                match handler.handle_join(active_bot, &rr) {
                     HandleResult::ContinueHandling => continue,
                     HandleResult::StopHandling => break,
                 }
@@ -244,7 +244,7 @@ impl MatrixBot {
                     .send(BKCommand::JoinRoom(rr.id.clone()))
                     .unwrap();
                 for handler in self.handlers.iter_mut() {
-                    match handler.handle_join(&active_bot, &rr) {
+                    match handler.handle_join(active_bot, &rr) {
                         HandleResult::ContinueHandling => continue,
                         HandleResult::StopHandling => break,
                     }
@@ -342,10 +342,7 @@ impl ActiveBot {
             ),
         };
 
-        let u = match url {
-            None => None,
-            Some(a) => Some(a.to_string()),
-        };
+        let u = url.map(|a| a.to_string());
 
         let m = Message {
             sender: uid,
@@ -361,7 +358,7 @@ impl ActiveBot {
             in_reply_to: None,
             receipt: std::collections::HashMap::new(),
             redacted: false,
-            extra_content: extra_content,
+            extra_content,
             source: None,
         };
 

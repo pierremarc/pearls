@@ -90,7 +90,7 @@ where
     S: Into<String>,
 {
     let u: String = username.into();
-    let prefix: Vec<&str> = u.split(":").collect();
+    let prefix: Vec<&str> = u.split(':').collect();
     prefix.first().map(|s| String::from(*s)).unwrap_or(u)
 }
 

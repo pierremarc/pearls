@@ -10,7 +10,7 @@ pub fn start(
     project_name: String,
     task: String,
 ) -> Option<(String, String)> {
-    let pendings = handler.store.select_current_task().unwrap_or(Vec::new());
+    let pendings = handler.store.select_current_task().unwrap_or_default();
     match pendings.iter().find(|rec| rec.username == user) {
         Some(rec) => Some((
             format!(

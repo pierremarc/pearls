@@ -55,14 +55,13 @@ pub fn digest(handler: &mut bot::Context, project: String) -> Option<(String, St
                 let available = handler.store.select_project_info(project.clone());
                 let note_records = handler
                     .store
-                    .select_notes(project.clone())
-                    .unwrap_or(Vec::new());
+                    .select_notes(project.clone()).unwrap_or_default();
 
                 let text_notes = make_notes_string(&note_records);
                 let html_notes = make_notes_html(&note_records);
 
                 let left: Vec<String> = recs
-                    .into_iter()
+                    .iter()
                     .map(|rec| {
                         format!(
                             "{}\t{}\t{}",
@@ -74,12 +73,12 @@ pub fn digest(handler: &mut bot::Context, project: String) -> Option<(String, St
                     .collect();
 
                 let right: Vec<Element> = recs
-                    .into_iter()
+                    .iter()
                     .map(|rec| {
                         make_table_row(vec![
                             display_username(rec.username.clone()),
                             rec.task.clone(),
-                            format!("{}", human_duration(rec.duration)),
+                            human_duration(rec.duration),
                         ])
                     })
                     .collect();

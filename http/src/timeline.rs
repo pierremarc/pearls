@@ -99,13 +99,13 @@ enum ProjectSize {
 
 fn get_size(n: u64) -> ProjectSize {
     if n < LOW {
-        return ProjectSize::Small;
+        ProjectSize::Small
     } else if n < MEDIUM {
-        return ProjectSize::Medium;
+        ProjectSize::Medium
     } else if n < HIGH {
-        return ProjectSize::Large;
+        ProjectSize::Large
     } else {
-        return ProjectSize::Huge;
+        ProjectSize::Huge
     }
 }
 
@@ -274,7 +274,9 @@ fn get_done(tasks: Vec<AggregatedTaskRecord>) -> std::time::Duration {
 }
 
 fn get_projects(store: &mut ConnectedStore) -> Result<Vec<TimelineProject>, StoreError> {
-    let projects = store.select_all_project_info().map(|rows| {
+    
+
+    store.select_all_project_info().map(|rows| {
         let mut active_projects: Vec<TimelineProject> = rows
             .iter()
             .filter_map(|record| {
@@ -284,8 +286,7 @@ fn get_projects(store: &mut ConnectedStore) -> Result<Vec<TimelineProject>, Stor
                     let tasks = store.select_project(record.name.clone());
                     let done = tasks.map(get_done);
                     let notes = store
-                        .select_notes(record.name.clone())
-                        .unwrap_or(Vec::new());
+                        .select_notes(record.name.clone()).unwrap_or_default();
                     Some((
                         record.clone(),
                         done.unwrap_or(Duration::from_secs(0)),
@@ -301,8 +302,7 @@ fn get_projects(store: &mut ConnectedStore) -> Result<Vec<TimelineProject>, Stor
                     let tasks = store.select_project(record.name.clone());
                     let done = tasks.map(get_done);
                     let notes = store
-                        .select_notes(record.name.clone())
-                        .unwrap_or(Vec::new());
+                        .select_notes(record.name.clone()).unwrap_or_default();
                     (
                         record.clone(),
                         done.unwrap_or(Duration::from_secs(0)),
@@ -316,9 +316,7 @@ fn get_projects(store: &mut ConnectedStore) -> Result<Vec<TimelineProject>, Stor
         active_projects.sort_by(cmp_by_deadline);
         active_projects.extend(completed_projects);
         active_projects
-    });
-
-    projects
+    })
 }
 
 fn meta_class(is_meta: bool, el: Element) -> Element {
@@ -334,7 +332,7 @@ async fn timeline_handler(
     arc_store: crate::common::ArcStore,
 ) -> Result<impl warp::Reply, Infallible> {
     let css = style(String::from(include_str!("timeline.css"))).set("type", "text/css");
-    let base_path = format!("/{}/", token.clone());
+    let base_path = format!("/{}/", token);
     if let Ok(mut store) = arc_store.lock() {
         if let Ok(connected) = store.connect(&token) {
             return match get_projects(connected) {

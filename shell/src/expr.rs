@@ -45,7 +45,7 @@ fn trailing_space<'a>() -> Parser<'a, u8, ()> {
 fn string<'a>() -> Parser<'a, u8, String> {
     let any = is_a(|_| true);
     let char_string = any.repeat(1..) - (sym(b'.') | end().map(|_| b'.'));
-    char_string.convert(|chars| String::from_utf8(chars))
+    char_string.convert(String::from_utf8)
 }
 
 fn letter<'a>() -> Parser<'a, u8, u8> {
@@ -55,8 +55,8 @@ fn letter<'a>() -> Parser<'a, u8, u8> {
 }
 
 fn digit<'a>() -> Parser<'a, u8, u8> {
-    let n = one_of(b"0123456789");
-    n
+    
+    one_of(b"0123456789")
 }
 
 // fn integer() -> Parser<u8, u32> {
@@ -73,16 +73,13 @@ fn fixed_int<'a>(i: usize) -> Parser<'a, u8, u32> {
     digit()
         .repeat(i)
         .convert(|chars| String::from_utf8(chars.to_vec()))
-        .map(|s| match s.parse::<u32>() {
-            Ok(n) => n,
-            Err(_) => 0,
-        })
+        .map(|s| s.parse::<u32>().unwrap_or(0))
 }
 
 fn ident<'a>(ctx: SharedContext) -> Parser<'a, u8, String> {
     let char_string = (letter() | digit() | one_of(b"_-.")).repeat(1..);
     with_error(
-        char_string.convert(|chars| String::from_utf8(chars)),
+        char_string.convert(String::from_utf8),
         move || err_ident(ctx.clone()),
     )
 }
@@ -180,7 +177,7 @@ fn add<'a>(ctx: SharedContext) -> CommandParser<'a> {
     let cn = with_success(seq(b"!new") - space(), move || {
         ctx_command("new", mctx.clone())
     });
-    let id = project_ident(ctx.clone());
+    let id = project_ident(ctx);
     let all = cn + id;
     all.map(|(_, project_name)| Command::Add(project_name))
 }
@@ -190,7 +187,7 @@ fn digest<'a>(ctx: SharedContext) -> CommandParser<'a> {
     let cn = with_success(seq(b"!digest") - space(), move || {
         ctx_command("digest", mctx.clone())
     });
-    let id = project_ident(ctx.clone());
+    let id = project_ident(ctx);
     let all = cn + id;
     all.map(|(_, project_name)| Command::Digest(project_name))
 }
@@ -202,7 +199,7 @@ fn start<'a>(ctx: SharedContext) -> CommandParser<'a> {
     });
     let id = project_ident(ctx.clone()) - space();
     let task = ident(ctx.clone()) - space();
-    let d = duration(ctx.clone());
+    let d = duration(ctx);
     let all = cn + id + task + d;
     all.map(|(((_, project_name), task), duration)| Command::Do(project_name, task, duration))
         .name("do")
@@ -215,7 +212,7 @@ fn done<'a>(ctx: SharedContext) -> CommandParser<'a> {
     });
     let id = project_ident(ctx.clone()) - space();
     let task = ident(ctx.clone()) - space();
-    let d = duration(ctx.clone());
+    let d = duration(ctx);
     let all = cn + id + task + d;
     all.map(|(((_, project_name), task), duration)| Command::Done(project_name, task, duration))
         .name("done")
@@ -227,7 +224,7 @@ fn switch<'a>(ctx: SharedContext) -> CommandParser<'a> {
         ctx_command("switch", mctx.clone())
     });
     let id = project_ident(ctx.clone()) - space();
-    let task = ident(ctx.clone());
+    let task = ident(ctx);
     let all = cn + id + task;
     all.map(|((_, project_name), task)| Command::Switch(project_name, task))
         .name("switch")
@@ -243,7 +240,7 @@ fn more<'a>(ctx: SharedContext) -> CommandParser<'a> {
     let cn = with_success(seq(b"!more") - space(), move || {
         ctx_command("more", mctx.clone())
     });
-    let d = duration(ctx.clone());
+    let d = duration(ctx);
     let all = cn + d;
     all.map(|(_, duration)| Command::More(duration))
         .name("more")
@@ -257,7 +254,7 @@ fn list<'a>(ctx: SharedContext) -> CommandParser<'a> {
 fn since<'a>(ctx: SharedContext) -> CommandParser<'a> {
     let mctx = ctx.clone();
     let cn = with_success(seq(b"!since"), move || ctx_command("since", mctx.clone()));
-    let t = date(ctx.clone()) | duration(ctx.clone()).map(|d| time::SystemTime::now() - d);
+    let t = date(ctx.clone()) | duration(ctx).map(|d| time::SystemTime::now() - d);
     let all = cn - space() + t;
     all.map(|(_, st)| Command::Since(st)).name("since")
 }
@@ -268,7 +265,7 @@ fn deadline<'a>(ctx: SharedContext) -> CommandParser<'a> {
         ctx_command("deadline", mctx.clone())
     });
     let id = project_ident(ctx.clone()) - space();
-    let d = date(ctx.clone());
+    let d = date(ctx);
     let all = cn + id + d;
     all.map(|((_, project_name), d)| Command::Deadline(project_name, d))
         .name("deadline")
@@ -280,7 +277,7 @@ fn provision<'a>(ctx: SharedContext) -> CommandParser<'a> {
         ctx_command("provision", mctx.clone())
     });
     let id = project_ident(ctx.clone()) - space();
-    let d = duration(ctx.clone());
+    let d = duration(ctx);
     let all = cn + id + d;
     all.map(|((_, project_name), d)| Command::Provision(project_name, d))
         .name("provision")
@@ -292,7 +289,7 @@ fn complete<'a>(ctx: SharedContext) -> CommandParser<'a> {
         ctx_command("complete", mctx.clone())
     });
     let id = project_ident(ctx.clone()) - space().opt();
-    let d = date(ctx.clone()).opt();
+    let d = date(ctx).opt();
     let all = cn + id + d;
     all.map(|((_, project_name), d)| match d {
         Some(d) => Command::Complete(project_name, d),
@@ -306,7 +303,7 @@ fn note<'a>(ctx: SharedContext) -> CommandParser<'a> {
     let cn = with_success(seq(b"!note") - space(), move || {
         ctx_command("note", mctx.clone())
     });
-    let id = project_ident(ctx.clone()) - space();
+    let id = project_ident(ctx) - space();
     let content = string();
     let all = cn + id + content;
     all.map(|((_, project_name), c)| Command::Note(project_name, c))
@@ -318,7 +315,7 @@ fn meta<'a>(ctx: SharedContext) -> CommandParser<'a> {
     let cn = with_success(seq(b"!meta") - space(), move || {
         ctx_command("meta", mctx.clone())
     });
-    let id = project_ident(ctx.clone());
+    let id = project_ident(ctx);
     let all = cn + id;
     all.map(|(_, project_name)| Command::Meta(project_name))
         .name("meta")
@@ -330,7 +327,7 @@ fn parent<'a>(ctx: SharedContext) -> CommandParser<'a> {
         ctx_command("parent", mctx.clone())
     });
     let child_id = project_ident(ctx.clone()) - space();
-    let parent_id = project_ident(ctx.clone());
+    let parent_id = project_ident(ctx);
     let all = cn + child_id + parent_id;
     all.map(|((_, child), parent)| Command::Parent(child, parent))
         .name("parent")
@@ -354,7 +351,7 @@ fn command<'a>(ctx: SharedContext) -> CommandParser<'a> {
             | complete(ctx.clone())
             | note(ctx.clone())
             | meta(ctx.clone())
-            | parent(ctx.clone())
+            | parent(ctx)
     }
     .name("command")
         - trailing_space()

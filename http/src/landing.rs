@@ -39,7 +39,9 @@ fn cmp_by_deadline(a: &ProjectRecord, b: &ProjectRecord) -> Ordering {
 }
 
 fn get_projects(store: &mut ConnectedStore) -> Result<Vec<ProjectRecord>, StoreError> {
-    let projects = store.select_all_project_info().map(|rows| {
+    
+
+    store.select_all_project_info().map(|rows| {
         let mut active_projects: Vec<ProjectRecord> = rows
             .iter()
             .filter_map(|record| {
@@ -52,9 +54,7 @@ fn get_projects(store: &mut ConnectedStore) -> Result<Vec<ProjectRecord>, StoreE
             .collect();
         active_projects.sort_by(cmp_by_deadline);
         active_projects
-    });
-
-    projects
+    })
 }
 
 async fn room(
@@ -75,7 +75,7 @@ async fn room(
     if let Ok(mut store) = arc_store.lock() {
         if let Ok(connected) = store.connect(&token) {
             match connected.select_current_task() {
-                Ok(recs) if recs.len() > 0 => {
+                Ok(recs) if !recs.is_empty() => {
                     for rec in recs {
                         if let Ok(duration) = rec.end_time.duration_since(now) {
                             content = content.append(

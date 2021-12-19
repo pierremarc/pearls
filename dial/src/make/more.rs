@@ -22,7 +22,7 @@ pub fn more(
                 .insert_do(user, now, end, rec.project.clone(), rec.task.clone())
         }) {
             Err(err) => Some((format!("Error: {}", err), String::new())),
-            Ok(_) => Some((format!("Keep up the good work!"), String::new())),
+            Ok(_) => Some(("Keep up the good work!".to_string(), String::new())),
         },
         None => Some((
             String::from("There's nothing to !more for you, sorry."),

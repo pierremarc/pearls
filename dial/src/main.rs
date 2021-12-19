@@ -18,9 +18,9 @@ fn run_bot(
     base_url: &str,
 ) {
     let log_path = Path::new(log);
-    let rx = bot::start_bot(&log_path, homeserver, username, password, base_url);
+    let rx = bot::start_bot(log_path, homeserver, username, password, base_url);
 
-    http::start_http(&log_path, http_address);
+    http::start_http(log_path, http_address);
 
     for message in rx.iter() {
         println!("{}", message);

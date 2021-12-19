@@ -12,20 +12,19 @@ pub fn switch(
     let now = time::SystemTime::now();
     let pendings = handler
         .store
-        .select_current_task_for(user.clone())
-        .unwrap_or(Vec::new());
+        .select_current_task_for(user.clone()).unwrap_or_default();
 
     match pendings.first() {
         Some(rec) => match select_project(handler, &project) {
             Err(candidates) => Some((candidates.as_text(""), candidates.as_html(""))),
             Ok(_) =>  match handler
             .store
-            .update_task_end(rec.id, now.clone())
+            .update_task_end(rec.id, now)
             .and_then(|_| {
                 handler.store.insert_do(user, now, rec.end_time, project, task.clone())
             }) {
             Err(err) => Some((format!("Error: {}", err), String::new())),
-            Ok(_) => Some((format!("Good {}ing!", task.clone()), String::new())),
+            Ok(_) => Some((format!("Good {}ing!", task), String::new())),
         }
     },
         None => Some((

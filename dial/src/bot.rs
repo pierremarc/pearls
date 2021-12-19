@@ -25,11 +25,11 @@ pub struct Context<'a> {
 fn exec_command(context: &mut Context, user: String, body: String) -> Option<(String, String)> {
     match parse_command(&body) {
         Ok(com) => {
-            let u = user.clone();
+            let u = user;
             match com {
                 Command::Ping => Some(("pong".into(), String::new())),
                 Command::List => make::list(context),
-                Command::Add(project) => make::new(context, u, project.clone()),
+                Command::Add(project) => make::new(context, u, project),
                 Command::Do(project, task, duration) => {
                     make::start(context, u, duration, project, task)
                 }
@@ -37,7 +37,7 @@ fn exec_command(context: &mut Context, user: String, body: String) -> Option<(St
                     make::done(context, u, duration, project, task)
                 }
                 Command::Stop => make::stop(context, u),
-                Command::More(d) => make::more(context, u, d.clone()),
+                Command::More(d) => make::more(context, u, d),
                 Command::Digest(project) => make::digest(context, project),
                 Command::Since(since) => make::since(context, u, since),
                 Command::Switch(project, task) => make::switch(context, u, project, task),
@@ -84,7 +84,7 @@ impl MessageHandler for CommandHandler {
         in order to fix this.
         ";
         if let Ok(mut store) = self.arc_store.lock() {
-            if let Ok(_) = store.connect(&room.id) {
+            if store.connect(&room.id).is_ok() {
                 bot.send_message(success, &room.id, MessageType::RoomNotice)
             } else {
                 bot.send_message(error, &room.id, MessageType::RoomNotice)
@@ -106,7 +106,7 @@ impl MessageHandler for CommandHandler {
             return HandleResult::StopHandling;
         }
         self.last_message_id = message.id.clone();
-        if body.chars().nth(0).unwrap_or('_') != '!' {
+        if body.chars().next().unwrap_or('_') != '!' {
             self.chan
                 .try_send(format!("[{}] {}> {}", room, user, body))
                 .unwrap_or(());
@@ -121,7 +121,7 @@ impl MessageHandler for CommandHandler {
                 };
 
                 match exec_command(&mut context, user, body) {
-                    Some((ref msg, ref html)) if html.len() == 0 => {
+                    Some((ref msg, ref html)) if html.is_empty() => {
                         bot.send_message(msg, &room, MessageType::RoomNotice)
                     }
                     Some((ref msg, ref html)) => {

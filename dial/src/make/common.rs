@@ -47,14 +47,14 @@ impl Candidates {
                 ))
             },
         );
-        let list_items: Vec<Element> = self.take(8).iter().map(|c| li(c)).collect();
+        let list_items: Vec<Element> = self.take(8).iter().map(li).collect();
         let list = ul(list_items);
         div(vec![title, list, paragraph(desc)]).as_string()
     }
 }
 
 fn get_project_name_parts(project_name: &str) -> Option<(String, String)> {
-    let parts: Vec<&str> = project_name.split("/").collect();
+    let parts: Vec<&str> = project_name.split('/').collect();
     parts.get(0).and_then(|client_name| {
         parts
             .get(1)

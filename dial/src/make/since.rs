@@ -8,7 +8,7 @@ pub fn since(
     user: String,
     since: time::SystemTime,
 ) -> Option<(String, String)> {
-    match handler.store.select_user(user.clone(), since) {
+    match handler.store.select_user(user, since) {
         Ok(results) => {
             let left: Vec<String> = results
                 .iter()
@@ -27,7 +27,7 @@ pub fn since(
                     make_table_row(vec![
                         rec.project.clone(),
                         rec.task.clone(),
-                        format!("{}", human_duration(rec.duration)),
+                        human_duration(rec.duration),
                     ])
                 })
                 .collect();

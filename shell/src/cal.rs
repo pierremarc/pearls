@@ -72,7 +72,7 @@ fn find_end_of_month(start: LocalTime) -> LocalTime {
             return attempt;
         }
     }
-    return start;
+    start
 }
 
 fn find_end_of_year(start: LocalTime) -> LocalTime {
@@ -84,21 +84,21 @@ fn find_end_of_year(start: LocalTime) -> LocalTime {
             return attempt;
         }
     }
-    return start;
+    start
 }
 
 fn min(t0: LocalTime, t1: LocalTime) -> LocalTime {
     if t0 < t1 {
         return t0;
     }
-    return t1;
+    t1
 }
 
 fn max(t0: LocalTime, t1: LocalTime) -> LocalTime {
     if t0 > t1 {
         return t0;
     }
-    return t1;
+    t1
 }
 
 impl CalRange {
@@ -184,7 +184,7 @@ impl Iterator for CalRangeIterator {
             return None;
         }
         let end = (self.step)(self.start);
-        let interval = (self.start.clone(), end);
+        let interval = (self.start, end);
         self.start = end;
         Some(interval)
     }

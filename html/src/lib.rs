@@ -132,7 +132,7 @@ impl Element {
 
     pub fn as_string(&self) -> String {
         let tag = self.tag;
-        if self.children.len() > 0 {
+        if !self.children.is_empty() {
             let cs = self
                 .children
                 .iter()
@@ -143,12 +143,10 @@ impl Element {
                 .collect::<Vec<String>>()
                 .join("\n");
             format!("<{}{}>{}</{}>", tag, attrs_as_string(&self.attrs), cs, tag)
+        } else if self.empty {
+            format!("<{}{}>", tag, attrs_as_string(&self.attrs))
         } else {
-            if self.empty {
-                format!("<{}{}>", tag, attrs_as_string(&self.attrs))
-            } else {
-                format!("<{}{}></{}>", tag, attrs_as_string(&self.attrs), tag)
-            }
+            format!("<{}{}></{}>", tag, attrs_as_string(&self.attrs), tag)
         }
     }
 }
@@ -258,7 +256,7 @@ where
         Children::Many(ns) => Element {
             tag,
             attrs: Attributes::new(),
-            children: ns.clone(),
+            children: ns,
             empty: is_empty(tag),
         },
     }

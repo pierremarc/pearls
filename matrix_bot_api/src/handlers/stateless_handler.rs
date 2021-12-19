@@ -49,7 +49,7 @@ impl MessageHandler for StatelessHandler {
     fn handle_message(&mut self, bot: &ActiveBot, message: &Message) -> HandleResult {
         match extract_command(&message.body, &self.cmd_prefix) {
             Some(command) => {
-                let func = self.cmd_handles.get(command).map(|x| *x);
+                let func = self.cmd_handles.get(command).copied();
                 match func {
                     Some(func) => {
                         if bot.verbose {

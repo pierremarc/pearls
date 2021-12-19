@@ -247,8 +247,7 @@ impl Store {
             .connections
             .iter()
             .map(|c| &c.room_id)
-            .find(|name| *name == db_name)
-            .is_some();
+            .any(|name| name == db_name);
         if exists {
             return self.connected(db_name);
         }
@@ -359,8 +358,8 @@ impl ConnectedStore {
         self.exec(
             Name::InsertProject,
             named_params! {
-                ":username": username.clone(),
-                ":name": name.clone(),
+                ":username": username,
+                ":name": name,
                 ":start": ts(&start),
             },
         )
@@ -374,10 +373,10 @@ impl ConnectedStore {
         self.exec(
             Name::InsertNote,
             named_params! {
-                ":project": project.clone(),
-                ":username": username.clone(),
+                ":project": project,
+                ":username": username,
                 ":created_at": ts(&time::SystemTime::now()),
-                ":content": content.clone(),
+                ":content": content,
             },
         )
     }
@@ -386,7 +385,7 @@ impl ConnectedStore {
         self.exec(
             Name::UpdateDeadline,
             named_params! {
-                ":name": name.clone(),
+                ":name": name,
                 ":end": ts(&end),
             },
         )
@@ -400,7 +399,7 @@ impl ConnectedStore {
         self.exec(
             Name::UpdateCompleted,
             named_params! {
-                ":name": name.clone(),
+                ":name": name,
                 ":completed": ts(&completed),
             },
         )
@@ -414,7 +413,7 @@ impl ConnectedStore {
         self.exec(
             Name::UpdateProvision,
             named_params! {
-                ":name": name.clone(),
+                ":name": name,
                 ":provision": dur(&provision),
             },
         )
@@ -424,7 +423,7 @@ impl ConnectedStore {
         self.exec(
             Name::UpdateMeta,
             named_params! {
-                ":name": name.clone(),
+                ":name": name,
                 ":is_meta": is_meta,
             },
         )
@@ -434,7 +433,7 @@ impl ConnectedStore {
         self.exec(
             Name::UpdateParent,
             named_params! {
-                ":name": name.clone(),
+                ":name": name,
                 ":parent": parent,
             },
         )
@@ -466,7 +465,7 @@ impl ConnectedStore {
         self.map_rows(
             Name::SelectCurrentTaskFor,
             named_params! {
-                ":user": user.clone(),
+                ":user": user,
                 ":now": ts(&now),
             },
             TaskRecord::from_row,
@@ -477,7 +476,7 @@ impl ConnectedStore {
         self.map_rows(
             Name::SelectLatestTaskFor,
             named_params! {
-                ":user": user.clone(),
+                ":user": user,
             },
             TaskRecord::from_row,
         )
@@ -495,7 +494,7 @@ impl ConnectedStore {
         self.map_rows(
             Name::SelectProjectInfo,
             named_params! {
-                ":project": project.clone(),
+                ":project": project,
             },
             ProjectRecord::from_row,
         )
@@ -567,7 +566,7 @@ impl ConnectedStore {
         self.map_rows(
             Name::SelectNotes,
             named_params! {
-                ":project": project.clone(),
+                ":project": project,
             },
             NoteRecord::from_row,
         )
@@ -581,7 +580,7 @@ impl ConnectedStore {
         self.map_rows(
             Name::SelectUser,
             named_params! {
-                ":user": user.clone(),
+                ":user": user,
                 ":since": ts(&since),
             },
             AggregatedTaskRecord::from_row,

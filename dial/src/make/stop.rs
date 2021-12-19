@@ -4,8 +4,7 @@ use std::time;
 pub fn stop(handler: &mut bot::Context, user: String) -> Option<(String, String)> {
     let pendings = handler
         .store
-        .select_current_task_for(user.clone())
-        .unwrap_or(Vec::new());
+        .select_current_task_for(user).unwrap_or_default();
     let pending = pendings.first();
     match pending {
         Some(rec) => match handler

@@ -17,14 +17,11 @@ fn format_tasklist(tasks: impl Iterator<Item = TaskRecord>) -> Vec<Element> {
         .map(|rec| {
             div(vec![
                 div(format!("{}({})", display_username(&rec.username), rec.task)),
-                div(format!(
-                    "{}",
-                    human_duration(
+                div(human_duration(
                         rec.end_time
                             .duration_since(rec.start_time)
                             .unwrap_or(time::Duration::from_secs(0))
-                    )
-                )),
+                    )),
             ])
             .set("class", "task")
         })
@@ -33,7 +30,7 @@ fn format_tasklist(tasks: impl Iterator<Item = TaskRecord>) -> Vec<Element> {
 
 fn make_day(day: &LocalTime, tasks: impl Iterator<Item = TaskRecord>, class: &str) -> Element {
     div(vec![
-        div(format!("{} {}", day_of_week(&day), day.day())).set("class", "weekday"),
+        div(format!("{} {}", day_of_week(day), day.day())).set("class", "weekday"),
         div(format_tasklist(tasks)).set("class", "task-list"),
     ])
     .set("class", &format!("day {}", class))
@@ -112,7 +109,7 @@ where
 
 fn cal_project(recs: &Vec<TaskRecord>, base_url_tabular: &str) -> Element {
     let mut cal: Calendar<TaskRecord> = Calendar::new();
-    for t in recs.into_iter() {
+    for t in recs.iter() {
         cal.push(
             date_time_from_st(&t.start_time),
             date_time_from_st(&t.end_time),
@@ -190,7 +187,7 @@ fn cal(token: String, store: ArcStore, project: String) -> Option<String> {
                 .map(|rec| rec.provision.map_or(0, |d| dur(&d)) / (1000 * 60 * 60))
                 .unwrap_or(0);
             let base_url_tabular = format!("{}/tabular/{}", &token, &project);
-            match connected.select_project_detail(project.clone()) {
+            match connected.select_project_detail(project) {
                 Ok(ref recs) => {
                     let names = recs
                         .iter()
