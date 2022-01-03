@@ -102,7 +102,7 @@ fn collect_records(
         st_to_datestring(&end_time)
     );
     if let Ok(mut store) = store.lock() {
-        if let Ok(connected) = store.connect(&token) {
+        if let Ok(connected) = store.connected(&token) {
             return match connected.select_project_detail(project_name) {
                 Err(_) => Vec::new(),
                 Ok(tasks) => tasks

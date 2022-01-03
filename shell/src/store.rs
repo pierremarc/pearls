@@ -242,7 +242,7 @@ impl Store {
         }
     }
 
-    pub fn connect(&mut self, db_name: &str) -> StoreResult<&mut ConnectedStore> {
+    pub fn connect_or_create(&mut self, db_name: &str) -> StoreResult<&mut ConnectedStore> {
         let exists = self
             .connections
             .iter()

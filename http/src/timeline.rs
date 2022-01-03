@@ -330,7 +330,7 @@ async fn timeline_handler(
     let css = style(String::from(include_str!("timeline.css"))).set("type", "text/css");
     let base_path = format!("/{}/", token);
     if let Ok(mut store) = arc_store.lock() {
-        if let Ok(connected) = store.connect(&token) {
+        if let Ok(connected) = store.connected(&token) {
             return match get_projects(connected) {
                 Err(_) => Ok(warp::reply::html(with_doctype(html([
                     head(css),

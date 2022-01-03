@@ -84,7 +84,7 @@ impl MessageHandler for CommandHandler {
         in order to fix this.
         ";
         if let Ok(mut store) = self.arc_store.lock() {
-            if store.connect(&room.id).is_ok() {
+            if store.connect_or_create(&room.id).is_ok() {
                 bot.send_message(success, &room.id, MessageType::RoomNotice)
             } else {
                 bot.send_message(error, &room.id, MessageType::RoomNotice)
