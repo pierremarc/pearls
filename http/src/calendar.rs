@@ -181,7 +181,7 @@ fn cal_project(recs: &[TaskRecord], base_url_tabular: &str) -> Element {
 
 fn cal(token: String, store: ArcStore, project: String) -> Option<String> {
     if let Ok(mut store) = store.lock() {
-        if let Ok(connected) = store.connected(&token) {
+        if let Ok(connected) = store.connect_existing(&token) {
             let available = connected
                 .select_project_info(project.clone())
                 .map(|rec| rec.provision.map_or(0, |d| dur(&d)) / (1000 * 60 * 60))

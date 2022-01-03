@@ -276,6 +276,31 @@ impl Store {
             .ok_or_else(|| StoreError::Open(db_name.into()))
     }
 
+    pub fn connect_existing(&mut self, db_name: &str) -> StoreResult<&mut ConnectedStore> {
+        let exists = self
+            .connections
+            .iter()
+            .map(|c| &c.room_id)
+            .any(|name| name == db_name);
+        if exists {
+            return self.connected(db_name);
+        }
+        let root_path = Path::new(&self.root_dir);
+        let path = root_path.join(&db_name);
+        if path.exists() {
+            let conn = Connection::open(path).map_err(|_| StoreError::Open(db_name.into()))?;
+            self.connections.push(ConnectedStore {
+                conn,
+                room_id: db_name.into(),
+            });
+            self.connections
+                .last_mut()
+                .ok_or_else(|| StoreError::Open(db_name.into()))
+        } else {
+            Err(StoreError::Open(db_name.into()))
+        }
+    }
+
     pub fn connected(&mut self, db_name: &str) -> StoreResult<&mut ConnectedStore> {
         self.connections
             .iter_mut()

@@ -71,7 +71,7 @@ async fn room(
     ])
     .class("content");
     if let Ok(mut store) = arc_store.lock() {
-        if let Ok(connected) = store.connected(&token) {
+        if let Ok(connected) = store.connect_existing(&token) {
             match connected.select_current_task() {
                 Ok(recs) if !recs.is_empty() => {
                     for rec in recs {
