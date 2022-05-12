@@ -1,128 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>ac - projects timeline</title>
 
-        <style type="text/css">
-            body {
-                font-family: sans-serif;
-                padding-left: 1em;
-            }
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ac - projects timeline</title>
 
-            .project-wrapper {
-                display: flex;
-                padding-bottom: 2em;
-            }
+    <style type="text/css">
+        body {
+            font-family: sans-serif;
+            padding-left: 1em;
+        }
 
-            .project-wrapper H2 {
-                margin-top: 0;
-            }
+        .project-wrapper {
+            display: flex;
+            padding-bottom: 2em;
+        }
 
-            .project-gauge {
-                height: 11em;
-                width: 30px;
-                border: 3px solid #000;
-                margin-right: 1em;
-                display: flex;
-                flex-direction: column;
-            }
-            .project-gauge > div {
-                width: 100%;
-            }
+        .project-wrapper H2 {
+            margin-top: 0;
+        }
 
-            .time-over {
-                background-color: red;
-            }
-            .time-done {
-                background-color: #000;
-            }
+        .project-gauge {
+            height: 11em;
+            width: 30px;
+            border: 3px solid #000;
+            margin-right: 1em;
+            display: flex;
+            flex-direction: column;
+        }
 
-            .info-wrapper {
-                display: flex;
-                margin-bottom: 0.5em;
-            }
+        .project-gauge>div {
+            width: 100%;
+        }
 
-            .info-wrapper .label {
-                margin-right: 1ch;
-            }
+        .time-over {
+            background-color: red;
+        }
 
-            .month {
-                border: 1px solid grey;
-                border-top: none;
-            }
+        .time-done {
+            background-color: #000;
+        }
 
-            .week {
-                display: flex;
+        .info-wrapper {
+            display: flex;
+            margin-bottom: 0.5em;
+        }
 
-                font-size: 8pt;
-                min-height: 64px;
-            }
-            .week.empty {
-                display: none;
-            }
-            .day {
-                display: flex;
-                flex-direction: column;
-                flex-grow: 1;
-                flex-basis: 0;
-            }
+        .info-wrapper .label {
+            margin-right: 1ch;
+        }
 
-            .in-month .weekday {
-                font-weight: bold;
-            }
+        .month {
+            border: 1px solid grey;
+            border-top: none;
+        }
 
-            .weekday {
-                border-bottom: 1px solid grey;
-                border-top: 1px solid grey;
-                text-align: center;
-            }
+        .week {
+            display: flex;
 
-            .task {
-                background-color: #eee;
-                //border: 1px solid gray;
-                padding: 3px;
-                margin: 3px;
-            }
+            font-size: 8pt;
+            min-height: 64px;
+        }
 
-            .summary {
-                margin-bottom: 1em;
-            }
-        </style>
-    </head>
+        .week.empty {
+            display: none;
+        }
 
-    <body>
-        <h1>projects timeline</h1>
+        .day {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            flex-basis: 0;
+        }
 
-        <div class="project-wrapper">
-            <div class="project-gauge">
-                <div class="time-over"></div>
-                <div class="time-available"></div>
-                <div class="time-done"></div>
-            </div>
-            <div class="project-infos">
-                <h2>ac-bot</h2>
+        .in-month .weekday {
+            font-weight: bold;
+        }
 
-                <div class="info-wrapper">
-                    <div class="label">Due :</div>
-                    <div class="value">dd/mm/yy in XX working days.</div>
-                </div>
+        .weekday {
+            border-bottom: 1px solid grey;
+            border-top: 1px solid grey;
+            text-align: center;
+        }
 
-                <div class="info-wrapper time">
-                    <!-- <div class="label">Time :</div> -->
-                    <div class="value">
-                        <div>Available time : xxh</div>
-                        <div>Done time : yyh</div>
-                        <div>Overtime : zzh</div>
-                    </div>
-                </div>
-                <div class="info-wrapper">
-                    <div class="label">People :</div>
-                    <div class="value">aa with xh - bb with yh</div>
-                </div>
-                <div class="info-wrapper">Completed on dd/mm/yyy</div>
-            </div>
+        .task {
+            background-color: #eee;
+            padding: 3px;
+            margin: 3px;
+        }
+
+        .summary {
+            margin-bottom: 1em;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>projects timeline</h1>
+
+    <div class="project-wrapper">
+        <div class="project-gauge">
+            <div class="time-over"></div>
+            <div class="time-available"></div>
+            <div class="time-done"></div>
         </div>
-    </body>
+        <div class="project-infos">
+            <h2>ac-bot</h2>
+
+            <div class="info-wrapper">
+                <div class="label">Due :</div>
+                <div class="value">dd/mm/yy in XX working days.</div>
+            </div>
+
+            <div class="info-wrapper time">
+                <!-- <div class="label">Time :</div> -->
+                <div class="value">
+                    <div>Available time : xxh</div>
+                    <div>Done time : yyh</div>
+                    <div>Overtime : zzh</div>
+                </div>
+            </div>
+            <div class="info-wrapper">
+                <div class="label">People :</div>
+                <div class="value">aa with xh - bb with yh</div>
+            </div>
+            <div class="info-wrapper">Completed on dd/mm/yyy</div>
+        </div>
+    </div>
+</body>
+
 </html>

@@ -47,6 +47,10 @@ fn exec_command(context: &mut Context, user: String, body: String) -> Option<(St
                 Command::Note(project, content) => make::note(context, u, project, content),
                 Command::Meta(project) => make::meta(context, u, project),
                 Command::Parent(child, parent) => make::parent(context, u, child, parent),
+                Command::Avail(start, end, weekly) => make::avail(context, u, start, end, weekly),
+                Command::Intent(project_name, amount) => {
+                    make::intent(context, u, project_name, amount)
+                }
                 Command::Help => make::help(context),
             }
         }

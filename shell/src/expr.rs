@@ -1,3 +1,7 @@
+use crate::parser_ext::{
+    ctx_command, err_date_format, err_duration_format, err_ident, err_project_ident, new_context,
+    with_error, with_success, ParseCommandError, SharedContext,
+};
 use chrono::Datelike;
 use chrono::TimeZone;
 use chrono::{offset::Utc, LocalResult};
@@ -7,11 +11,6 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::time;
-
-use crate::parser_ext::{
-    ctx_command, err_date_format, err_duration_format, err_ident, err_project_ident, new_context,
-    with_error, with_success, ParseCommandError, SharedContext,
-};
 
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub enum Command {
@@ -32,6 +31,8 @@ pub enum Command {
     Note(String, String),
     Meta(String),
     Parent(String, String),
+    Avail(time::SystemTime, time::SystemTime, time::Duration),
+    Intent(String, time::Duration),
 }
 
 fn space<'a>() -> Parser<'a, u8, ()> {
@@ -66,6 +67,17 @@ fn digit<'a>() -> Parser<'a, u8, u8> {
 //             Ok(n) => n,
 //             Err(_) => 0,
 //         })
+// }
+
+// fn float<'a>() -> Parser<'a, u8, f64> {
+//     let integer = one_of(b"123456789") - one_of(b"0123456789").repeat(0..) | sym(b'0');
+//     let frac = sym(b'.') + one_of(b"0123456789").repeat(1..);
+//     let exp = one_of(b"eE") + one_of(b"+-").opt() + one_of(b"0123456789").repeat(1..);
+//     let number = sym(b'-').opt() + integer + frac.opt() + exp.opt();
+//     number
+//         .collect()
+//         .convert(std::str::from_utf8)
+//         .convert(|s| f64::from_str(&s))
 // }
 
 fn fixed_int<'a>(i: usize) -> Parser<'a, u8, u32> {
@@ -331,6 +343,30 @@ fn parent<'a>(ctx: SharedContext) -> CommandParser<'a> {
         .name("parent")
 }
 
+fn avail<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!avail") - space(), move || {
+        ctx_command("avail", mctx.clone())
+    });
+    let start = date(ctx.clone()) - space();
+    let end = date(ctx.clone()) - space();
+    let all = cn + start + end + duration(ctx.clone());
+    all.map(|(((_, start), end), weekly)| Command::Avail(start, end, weekly))
+        .name("avail")
+}
+
+fn intent<'a>(ctx: SharedContext) -> CommandParser<'a> {
+    let mctx = ctx.clone();
+    let cn = with_success(seq(b"!intent") - space(), move || {
+        ctx_command("intent", mctx.clone())
+    });
+    let id = project_ident(ctx.clone()) - space();
+    let amount = duration(ctx.clone());
+    let all = cn + id + amount;
+    all.map(|((_, project_name), amount)| Command::Intent(project_name, amount))
+        .name("intent")
+}
+
 fn command<'a>(ctx: SharedContext) -> CommandParser<'a> {
     {
         ping(ctx.clone())
@@ -349,7 +385,9 @@ fn command<'a>(ctx: SharedContext) -> CommandParser<'a> {
             | complete(ctx.clone())
             | note(ctx.clone())
             | meta(ctx.clone())
-            | parent(ctx)
+            | parent(ctx.clone())
+            | avail(ctx.clone())
+            | intent(ctx.clone())
     }
     .name("command")
         - trailing_space()

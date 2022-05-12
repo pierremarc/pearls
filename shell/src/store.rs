@@ -111,6 +111,50 @@ impl NoteRecord {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Intent {
+    pub id: i64,
+    pub username: String,
+    pub project: String,
+    pub amount: time::Duration,
+    pub start_time: time::SystemTime,
+    pub end_time: Option<time::SystemTime>,
+}
+
+impl Intent {
+    fn from_row(row: &Row) -> SqlResult<Intent> {
+        Ok(Intent {
+            id: row.get(0)?,
+            username: row.get(1)?,
+            project: row.get(2)?,
+            amount: dur_from_ts(row.get(3)?),
+            start_time: st_from_ts(row.get(4)?),
+            end_time: row.get(5).map(st_from_ts).ok(),
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Avail {
+    pub id: i64,
+    pub username: String,
+    pub start_time: time::SystemTime,
+    pub end_time: time::SystemTime,
+    pub weekly: time::Duration,
+}
+
+impl Avail {
+    fn from_row(row: &Row) -> SqlResult<Avail> {
+        Ok(Avail {
+            id: row.get(0)?,
+            username: row.get(1)?,
+            start_time: st_from_ts(row.get(2)?),
+            end_time: st_from_ts(row.get(3)?),
+            weekly: dur_from_ts(row.get(4)?),
+        })
+    }
+}
+
 pub struct ConnectedStore {
     room_id: String,
     conn: Connection,
@@ -154,6 +198,8 @@ pub enum Name {
     InsertNote,
     InsertNotification,
     InsertProject,
+    InsertAvail,
+    InsertIntent,
     SelectAllProjectInfo,
     SelectCurrentTask,
     SelectCurrentTaskFor,
@@ -164,6 +210,11 @@ pub enum Name {
     SelectProjectDetail,
     SelectProjectInfo,
     SelectUser,
+    SelectAvail,
+    SelectAvailForUser,
+    SelectIntentAll,
+    SelectIntentForProject,
+    SelectIntentForUser,
     UpdateCompleted,
     UpdateDeadline,
     UpdateProvision,
@@ -178,6 +229,8 @@ fn sql(name: Name) -> &'static str {
         Name::InsertNote => include_str!("sql/insert_note.sql"),
         Name::InsertNotification => include_str!("sql/insert_notification.sql"),
         Name::InsertProject => include_str!("sql/insert_project.sql"),
+        Name::InsertAvail => include_str!("sql/insert_avail.sql"),
+        Name::InsertIntent => include_str!("sql/insert_intent.sql"),
         Name::SelectAllProjectInfo => include_str!("sql/select_all_project_info.sql"),
         Name::SelectCurrentTask => include_str!("sql/select_current_task.sql"),
         Name::SelectCurrentTaskFor => include_str!("sql/select_current_task_for.sql"),
@@ -188,6 +241,11 @@ fn sql(name: Name) -> &'static str {
         Name::SelectProjectDetail => include_str!("sql/select_project_detail.sql"),
         Name::SelectProjectInfo => include_str!("sql/select_project_info.sql"),
         Name::SelectUser => include_str!("sql/select_user.sql"),
+        Name::SelectAvail => include_str!("sql/select_avail.sql"),
+        Name::SelectAvailForUser => include_str!("sql/select_avail_for_user.sql"),
+        Name::SelectIntentAll => include_str!("sql/select_intent_all.sql"),
+        Name::SelectIntentForProject => include_str!("sql/select_intent_for_project.sql"),
+        Name::SelectIntentForUser => include_str!("sql/select_intent_for_user.sql"),
         Name::UpdateCompleted => include_str!("sql/update_completed.sql"),
         Name::UpdateDeadline => include_str!("sql/update_deadline.sql"),
         Name::UpdateProvision => include_str!("sql/update_provision.sql"),
@@ -226,6 +284,12 @@ fn migrate(conn: &Connection) {
             conn.execute_batch(include_str!("sql/migrations/004.sql"))
                 .expect("Failed migration: 004.sql");
             println!("Applied sql/migrations/004.sql");
+            migrate(conn);
+        }
+        4 => {
+            conn.execute_batch(include_str!("sql/migrations/005.sql"))
+                .expect("Failed migration: 005.sql");
+            println!("Applied sql/migrations/005.sql");
             migrate(conn);
         }
         _ => println!("Migrate completed, we're at version {}", user_version),
@@ -389,6 +453,7 @@ impl ConnectedStore {
             },
         )
     }
+
     pub fn insert_note(
         &mut self,
         project: String,
@@ -402,6 +467,40 @@ impl ConnectedStore {
                 ":username": username,
                 ":created_at": ts(&time::SystemTime::now()),
                 ":content": content,
+            },
+        )
+    }
+
+    pub fn insert_avail(
+        &mut self,
+        username: String,
+        start: time::SystemTime,
+        end: time::SystemTime,
+        weekly: time::Duration,
+    ) -> StoreResult<usize> {
+        self.exec(
+            Name::InsertAvail,
+            named_params! {
+                ":username": username,
+                ":start": ts(&start),
+                ":end": ts(&end),
+                ":weekly": dur(&weekly),
+            },
+        )
+    }
+
+    pub fn insert_intent(
+        &mut self,
+        username: String,
+        project: String,
+        amount: time::Duration,
+    ) -> StoreResult<usize> {
+        self.exec(
+            Name::InsertIntent,
+            named_params! {
+                ":project": project,
+                ":username": username,
+                ":amount": dur(&amount),
             },
         )
     }
@@ -609,6 +708,58 @@ impl ConnectedStore {
                 ":since": ts(&since),
             },
             AggregatedTaskRecord::from_row,
+        )
+    }
+
+    pub fn select_avail_all(&self) -> StoreResult<Vec<Avail>> {
+        self.map_rows(
+            Name::SelectAvail,
+            named_params! {
+                ":now": ts(&time::SystemTime::now()),
+            },
+            Avail::from_row,
+        )
+    }
+
+    pub fn select_avail_for_user(&self, user: String) -> StoreResult<Vec<Avail>> {
+        self.map_rows(
+            Name::SelectAvailForUser,
+            named_params! {
+                ":user": user,
+                ":now": ts(&time::SystemTime::now()),
+            },
+            Avail::from_row,
+        )
+    }
+
+    pub fn select_intent_for_project(&self, project: String) -> StoreResult<Vec<Intent>> {
+        self.map_rows(
+            Name::SelectIntentForProject,
+            named_params! {
+                ":project": project,
+            },
+            Intent::from_row,
+        )
+    }
+
+    pub fn select_intent_for_user(&self, user: String) -> StoreResult<Vec<Intent>> {
+        self.map_rows(
+            Name::SelectIntentForUser,
+            named_params! {
+                ":user": user,
+                ":now": ts(&time::SystemTime::now()),
+            },
+            Intent::from_row,
+        )
+    }
+
+    pub fn select_intent_all(&self) -> StoreResult<Vec<Intent>> {
+        self.map_rows(
+            Name::SelectIntentAll,
+            named_params! {
+                ":now": ts(&time::SystemTime::now()),
+            },
+            Intent::from_row,
         )
     }
 

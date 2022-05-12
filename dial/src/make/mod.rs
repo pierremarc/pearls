@@ -1,9 +1,11 @@
+mod avail;
 mod common;
 mod complete;
 mod deadline;
 mod digest;
 mod done;
 mod help;
+mod intent;
 mod list;
 mod meta;
 mod more;
@@ -17,11 +19,13 @@ mod start;
 mod stop;
 mod switch;
 
+pub use crate::make::avail::avail;
 pub use crate::make::complete::complete;
 pub use crate::make::deadline::deadline;
 pub use crate::make::digest::digest;
 pub use crate::make::done::done;
 pub use crate::make::help::help;
+pub use crate::make::intent::intent;
 pub use crate::make::list::list;
 pub use crate::make::meta::meta;
 pub use crate::make::more::more;

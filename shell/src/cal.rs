@@ -435,7 +435,7 @@ mod tests {
         cal.push(s1, e1, 2);
         let mut prev_year: Option<LocalTime> = None;
         let mut prev_month: Option<LocalTime> = None;
-        let mut prev_week: Option<LocalTime> = None;
+        let mut _prev_week: Option<LocalTime> = None;
         for i in cal.iter() {
             match i {
                 CalendarItem::Year(d) => {
@@ -451,7 +451,7 @@ mod tests {
                 CalendarItem::Week(d, _) => {
                     // prev_week.map(|pd| assert_ne!(d, pd));
                     println!("\nWeek({})", d.day());
-                    prev_week = Some(d);
+                    _prev_week = Some(d);
                 }
                 CalendarItem::Day(d, es) => {
                     let u = es.first().map(|e| e.data).unwrap_or(0);

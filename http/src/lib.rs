@@ -8,6 +8,7 @@ mod common;
 mod landing;
 mod tabular;
 mod timeline;
+mod workload;
 
 pub fn start_http(path: &Path, host: &str) {
     let addr: SocketAddr = host.parse().expect("Invalid address for the http server");
