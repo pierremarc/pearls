@@ -1,0 +1,26 @@
+.week-load {
+  margin-top: 20px;
+}
+
+.load-list {
+  margin-left: 20px;
+}
+
+.load-value {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 5px;
+}
+
+.load-value > div {
+  flex-shrink: 0;
+}
+.load-hour {
+  width: 10px;
+  height: 10px;
+  background-color: black;
+}
+
+.load-hour:nth-child(6) {
+  border-right: 2px solid white;
+}
