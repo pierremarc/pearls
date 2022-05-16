@@ -20,6 +20,7 @@ pub fn start_http(path: &Path, host: &str) {
             .or(timeline::timeline(arc_store.clone()))
             .or(tabular::tabular(arc_store.clone()))
             .or(landing::room_landing(arc_store.clone()))
+            .or(workload::workload(arc_store.clone()))
             .or(landing::landing());
         // let runtime = tokio::runtime::Runtime::new().expect("Failed to start tokio runtime");
         let mut runtime = tokio::runtime::Builder::new()

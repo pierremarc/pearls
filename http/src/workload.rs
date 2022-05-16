@@ -1,16 +1,49 @@
-use std::time::SystemTime;
-
-use chrono::{Datelike, Duration};
-use html::{div, Element, Empty};
-use shell::{
-    cal::month_name,
-    plan::{find_loads, next_monday, plan_all, WorkLoad},
-    store::ConnectedStore,
-    util::{date_time_from_st, display_username},
+use std::{
+    collections::{HashMap, HashSet},
+    convert::Infallible,
+    time::SystemTime,
 };
 
-fn make_load(work_load: &WorkLoad) -> Element {
-    let user = display_username(work_load.user());
+use chrono::{DateTime, Datelike, Duration, Local};
+use html::{body, div, h2, h3, head, html, style, with_doctype, Element, Empty};
+use shell::{
+    cal::month_name,
+    plan::{find_loads, next_monday, plan_all, WorkLoad, WorkPlan},
+    store::{ConnectedStore, ProjectRecord},
+    util::{date_time_from_st, display_username},
+};
+use warp::Filter;
+
+use crate::common::{with_store, ArcStore};
+
+struct UserMap {
+    umap: HashMap<String, String>,
+}
+
+impl UserMap {
+    fn new() -> Self {
+        UserMap {
+            umap: HashMap::new(),
+        }
+    }
+
+    fn alias(&mut self, username: &str) -> String {
+        if self.umap.contains_key(username) {
+            return {
+                match self.umap.get(username) {
+                    Some(alias) => alias.clone(),
+                    None => String::from(username),
+                }
+            };
+        }
+        let alias = format!("user-{}", self.umap.len() + 1);
+        self.umap.insert(String::from(username), alias.clone());
+        alias
+    }
+}
+
+fn make_load(work_load: &WorkLoad, umap: &mut UserMap) -> Element {
+    // let user = display_username(work_load.user());
     let project = work_load.project();
     let start = work_load.start().format("%F");
     let hours = work_load.load().num_hours();
@@ -19,23 +52,79 @@ fn make_load(work_load: &WorkLoad) -> Element {
         .map(|_| div(Empty).class("load-hour"))
         .collect();
     div([
-        div(format!("{user} {project}")).class("username"),
+        div(project).class("project-name"),
         div(load).class("load-value"),
     ])
-    .class("load")
+    .class(format!("load-wrapper {}", umap.alias(work_load.user())))
     .set("title", &title)
 }
 
 fn make_date(start: &chrono::DateTime<chrono::Local>) -> Element {
-    div(start.format("%F").to_string()).class("date")
+    h3(start.format("%F").to_string()).class("date")
 }
 
-fn make_week(start: &chrono::DateTime<chrono::Local>, loads: Vec<&WorkLoad>) -> Element {
+fn make_week(
+    start: &chrono::DateTime<chrono::Local>,
+    loads: Vec<&WorkLoad>,
+    umap: &mut UserMap,
+    deadlines: Element,
+) -> Element {
     div([
         make_date(start),
-        div(loads.into_iter().map(make_load).collect::<Vec<_>>()).class("load-list"),
+        deadlines,
+        div(loads
+            .into_iter()
+            .map(|load| make_load(load, umap))
+            .collect::<Vec<_>>())
+        .class("load-list"),
     ])
     .class("week-load")
+}
+
+fn make_users(plan: &WorkPlan, umap: &mut UserMap) -> Element {
+    let user_list = plan
+        .iter()
+        .map(|(username, _)| username)
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .map(|username| div(display_username(username)).class(umap.alias(username)))
+        .collect::<Vec<_>>();
+
+    div(user_list).class("user-list")
+}
+
+fn in_window(t: &SystemTime, start: &DateTime<Local>, end: &DateTime<Local>) -> bool {
+    let dt = &date_time_from_st(t);
+    dt >= start && dt < end
+}
+
+fn make_deadlines(
+    projects: &Vec<ProjectRecord>,
+    start: &DateTime<Local>,
+    end: &DateTime<Local>,
+) -> Element {
+    let deadlines: Vec<&ProjectRecord> = projects
+        .iter()
+        .filter(|p| {
+            p.end_time
+                .map(|t| in_window(&t, start, end))
+                .unwrap_or(false)
+        })
+        .collect();
+    if deadlines.len() > 0 {
+        div(deadlines
+            .iter()
+            .map(|p| {
+                div(&p.name).class("project-name").set(
+                    "title",
+                    format!("{}", date_time_from_st(&p.end_time.unwrap()).format("%F")),
+                )
+            })
+            .collect::<Vec<_>>())
+        .class("dealines")
+    } else {
+        div(Empty).class("deadlines empty")
+    }
 }
 
 pub fn render_workload(conn: &ConnectedStore) -> Element {
@@ -52,21 +141,61 @@ pub fn render_workload(conn: &ConnectedStore) -> Element {
     );
     let year = date_time_from_st(&SystemTime::now()) + Duration::days(361);
     let max = max_avail.max(year);
-    let mut start = next_monday(&date_time_from_st(&SystemTime::now()));
+    let now = date_time_from_st(&SystemTime::now()).date();
+    let mut start = now.and_hms(0, 0, 0);
+    // let mut start = next_monday(&dt);
     let mut months: Vec<Element> = Vec::new();
     let mut weeks: Vec<Element> = Vec::new();
+    let mut umap = UserMap::new();
+
     while start < max {
         let end = next_monday(&start);
+        // let sunday = dbg!(end - chrono::Duration::hours(12));
         let loads = find_loads(&plan, &start, &end);
-        weeks.push(make_week(&start, loads));
+        let deadlines = make_deadlines(&projects, &start, &end);
+        weeks.push(make_week(&start, loads, &mut umap, deadlines));
         if start.month() < end.month() || end >= max {
             months.push(
-                div([div(month_name(&start)).class("month-name"), div(weeks)]).class("month-load"),
+                div([
+                    h2(month_name(&start)).class("month-name"),
+                    div(weeks).class("month-load"),
+                ])
+                .class("month-load-wrapper"),
             );
             weeks = Vec::new();
         }
         start = end;
     }
 
-    div(months).class("workload-block")
+    div([make_users(&plan, &mut umap), div(months).class("months")]).class("workload-block")
+}
+
+async fn workload_handler(
+    token: String,
+    arc_store: crate::common::ArcStore,
+) -> Result<impl warp::Reply, Infallible> {
+    let css = style(String::from(include_str!("timeline.css"))).set("type", "text/css");
+    // let base_path = format!("/{}/", token);
+    if let Ok(mut store) = arc_store.lock() {
+        if let Ok(connected) = store.connect_existing(&token) {
+            return Ok(warp::reply::html(with_doctype(html([
+                head(css),
+                body(render_workload(connected)),
+            ]))));
+        }
+    }
+
+    Ok(warp::reply::html(with_doctype(html([
+        head(css),
+        body(div("Error")),
+    ]))))
+}
+
+pub fn workload(
+    s: ArcStore,
+) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!(String / "load")
+        .and(warp::get())
+        .and(with_store(s))
+        .and_then(workload_handler)
 }

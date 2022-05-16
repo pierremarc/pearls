@@ -13,10 +13,7 @@ use std::{
 };
 use warp::Filter;
 
-use crate::{
-    common::{with_store, ArcStore},
-    workload::render_workload,
-};
+use crate::common::{with_store, ArcStore};
 
 type TimelineProject = (ProjectRecord, std::time::Duration, Vec<NoteRecord>);
 
@@ -385,7 +382,7 @@ async fn timeline_handler(
 
                     Ok(warp::reply::html(with_doctype(html([
                         head(css),
-                        body([render_workload(connected), div(elements).class("projects")]),
+                        body(div(elements).class("projects")),
                     ]))))
                 }
             };
