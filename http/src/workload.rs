@@ -154,7 +154,7 @@ pub fn render_workload(conn: &ConnectedStore) -> Element {
         let loads = find_loads(&plan, &start, &end);
         let deadlines = make_deadlines(&projects, &start, &end);
         weeks.push(make_week(&start, loads, &mut umap, deadlines));
-        if start.month() < end.month() || end >= max {
+        if start.month() != end.month() || end >= max {
             months.push(
                 div([
                     h2(month_name(&start)).class("month-name"),
