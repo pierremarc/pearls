@@ -174,7 +174,7 @@ async fn workload_handler(
     token: String,
     arc_store: crate::common::ArcStore,
 ) -> Result<impl warp::Reply, Infallible> {
-    let css = style(String::from(include_str!("timeline.css"))).set("type", "text/css");
+    let css = style(String::from(include_str!("workload.css"))).set("type", "text/css");
     // let base_path = format!("/{}/", token);
     if let Ok(mut store) = arc_store.lock() {
         if let Ok(connected) = store.connect_existing(&token) {

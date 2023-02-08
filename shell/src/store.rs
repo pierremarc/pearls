@@ -261,6 +261,7 @@ fn migrate(conn: &Connection) {
         NO_PARAMS,
         |row| row.get::<usize, i64>(0),
     ).expect("Could not get user_version from the database, \nmeans we can't process DB version check and migrations. \nAborting");
+
     match user_version {
         0 => {
             conn.execute_batch(include_str!("sql/migrations/001.sql"))
@@ -290,6 +291,12 @@ fn migrate(conn: &Connection) {
             conn.execute_batch(include_str!("sql/migrations/005.sql"))
                 .expect("Failed migration: 005.sql");
             println!("Applied sql/migrations/005.sql");
+            migrate(conn);
+        }
+        5 => {
+            conn.execute_batch(include_str!("sql/migrations/006.sql"))
+                .expect("Failed migration: 006.sql");
+            println!("Applied sql/migrations/006.sql");
             migrate(conn);
         }
         _ => println!("Migrate completed, we're at version {}", user_version),

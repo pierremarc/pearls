@@ -8,6 +8,8 @@ const DATE_HELP: &str = "
 ";
 
 fn make_text(handler: &mut bot::Context) -> String {
+    let base_url = &handler.base_url;
+    let room_id = &handler.room_id;
     format!("
         !ping
             check if the bot's still alive
@@ -15,13 +17,13 @@ fn make_text(handler: &mut bot::Context) -> String {
             register a new project
         !deadline <project-name> <date>
             set a deadline for an existing project
-            {}
+            {DATE_HELP}
         !provision <project-name> <duration>
             set provisioned time for an existing project
         !complete  <project-name> <date?> 
             set completion date for an existing project, if
             date is not provided, it will take the current time instead.
-            {}
+            {DATE_HELP}
         !note <project-name> <text>
             add a note to a project, free text.
         !meta <project-name>
@@ -44,9 +46,15 @@ fn make_text(handler: &mut bot::Context) -> String {
             give stat for a given project
         !since <date or duration>
             a summary of your tasks since date
+        !avail <date> <date> <duration>
+            Set your maximum weekly availability during this period
+        !intent <project-name> <duration>
+            Set the amount of time you intend to dedicate to a project
 
-        A timeline is visible at http://{}/{}/timeline
-        ", DATE_HELP, DATE_HELP, handler.base_url, handler.room_id)
+        Timeline is visible at http://{base_url}/{room_id}/timeline
+        
+        Workload is visible at http://{base_url}/{room_id}/load
+        ")
 }
 
 fn make_html(handler: &mut bot::Context) -> String {
@@ -129,8 +137,25 @@ fn make_html(handler: &mut bot::Context) -> String {
             em("duration "),
         ]),
         paragraph("a summary of your tasks since date."),
+        h4(vec![
+            span("!avail  "),
+            em("data "),
+            em("data "),
+            em("duration "),
+        ]),
+        paragraph("Set your maximum weekly availability during this period."),
+        h4(vec![
+            span("!intent  "),
+            em("project-name "),
+            em("duration "),
+        ]),
+        paragraph("Set the amount of time you intend to dedicate to a project."),
         div(vec![
             anchor("TIMELINE").set("href", format!("{}/{}/timeline
+        ", handler.base_url, handler.room_id))
+        ]),
+        div(vec![
+            anchor("WORLOAD").set("href", format!("{}/{}/load
         ", handler.base_url, handler.room_id))
         ])
         ])
