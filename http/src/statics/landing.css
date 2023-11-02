@@ -1,8 +1,9 @@
 body{
     font-family: sans-serif;
+    margin: 2em;
 }
 
 
 .content {
-    margin: 2em;
+    font-style: normal;
 }

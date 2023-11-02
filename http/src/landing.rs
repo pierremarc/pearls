@@ -1,32 +1,41 @@
-use std::{cmp::Ordering, convert::Infallible, time};
-
 use html::{anchor, body, div, h2, h3, head, html, span, style, title, with_doctype, Empty};
+use serde_json::json;
 use shell::{
     store::{ConnectedStore, ProjectRecord, StoreError},
     util::{display_username, human_duration},
 };
+use std::{cmp::Ordering, convert::Infallible, time};
 use warp::Filter;
 
-use crate::common::with_store;
+use crate::{common::with_store, context::ArcContext};
 
-fn document() -> String {
-    let css = style(String::from(include_str!("landing.css"))).set("type", "text/css");
-    let title = title(Empty).append_text("pearls");
-    let content = div([
-        h2("pearls"),
-        span("A bot, counting time on"),
-        anchor("matrix").set("href", "https://matrix.org"),
-        span("network for"),
-        anchor("atelier cartographique").set("href", "https://www.atelier-cartographique.be"),
-        span("and friends."),
-    ])
-    .class("content");
+fn document(ctx: ArcContext) -> String {
+    // let css = style(String::from(include_str!("landing.css"))).set("type", "text/css");
+    // let title = title(Empty).append_text("pearls");
+    // let content = div([
+    //     h2("pearls"),
+    //     span("A bot, counting time on"),
+    //     anchor("matrix").set("href", "https://matrix.org"),
+    //     span("network for"),
+    //     anchor("atelier cartographique").set("href", "https://www.atelier-cartographique.be"),
+    //     span("and friends."),
+    // ])
+    // .class("content");
 
-    with_doctype(html([head([title, css]), body(content)]))
+    // with_doctype(html([head([title, css]), body(content)]))
+    match ctx.lock() {
+        Ok(ctx) => match ctx.render("landing", &json!({})) {
+            Ok(rendered) => rendered,
+            Err(err) => format!("Error rendering: {}", err),
+        },
+        Err(_) => "Oop".into(),
+    }
 }
 
-pub fn landing() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::get().map(|| warp::reply::html(document()))
+pub fn landing(
+    ctx: ArcContext,
+) -> impl Filter<Extract = impl warp::Reply + '_, Error = warp::Rejection> + Clone + '_ {
+    warp::get().map(move || warp::reply::html(document(ctx.clone())))
 }
 
 fn cmp_by_deadline(a: &ProjectRecord, b: &ProjectRecord) -> Ordering {
@@ -106,13 +115,10 @@ async fn room(
             }
         }
     }
-    let css = style(String::from(include_str!("landing.css"))).set("type", "text/css");
+    // let css = style(String::from(include_str!("landing.css"))).set("type", "text/css");
     let title = title(Empty).append_text(&token);
     let body = body(content);
-    Ok(warp::reply::html(with_doctype(html([
-        head([title, css]),
-        body,
-    ]))))
+    Ok(warp::reply::html(with_doctype(html([head(title), body]))))
 }
 
 pub fn room_landing(

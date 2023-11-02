@@ -1,19 +1,25 @@
 use shell::store::Store;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::{net::SocketAddr, path::Path};
 use warp::Filter;
 
 mod calendar;
 mod common;
+mod context;
 mod landing;
 mod tabular;
 mod timeline;
 mod workload;
 
-pub fn start_http(path: &Path, host: &str) {
+pub fn start_http(path: &Path, host: &str, static_dir: &str) {
     let addr: SocketAddr = host.parse().expect("Invalid address for the http server");
     let store = Store::new(String::from(path.to_string_lossy()));
     let arc_store = Arc::new(Mutex::new(store));
+
+    let statics = warp::path("static").and(warp::fs::dir(PathBuf::from(static_dir)));
+
+    let ctx = context::context(String::from(path.to_string_lossy()));
 
     std::thread::spawn(move || {
         let routes = calendar::calendar(arc_store.clone())
@@ -21,7 +27,9 @@ pub fn start_http(path: &Path, host: &str) {
             .or(tabular::tabular(arc_store.clone()))
             .or(landing::room_landing(arc_store.clone()))
             .or(workload::workload(arc_store.clone()))
-            .or(landing::landing());
+            .or(statics)
+            .or(landing::landing(ctx.clone()));
+
         // let runtime = tokio::runtime::Runtime::new().expect("Failed to start tokio runtime");
         let mut runtime = tokio::runtime::Builder::new()
             .basic_scheduler()

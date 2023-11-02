@@ -16,11 +16,12 @@ fn run_bot(
     log: &str,
     http_address: &str,
     base_url: &str,
+    statict_dir: &str,
 ) {
     let log_path = Path::new(log);
     let rx = bot::start_bot(log_path, homeserver, username, password, base_url);
 
-    http::start_http(log_path, http_address);
+    http::start_http(log_path, http_address, statict_dir);
 
     for message in rx.iter() {
         println!("{}", message);
@@ -56,6 +57,13 @@ fn main() {
         .help("Path to a directory where sqlite files will be stored")
         .takes_value(true);
 
+    let static_dir = Arg::with_name("static_dir")
+        .short("s")
+        .long("static_dir")
+        .value_name("static_dir")
+        .help("Path static assets directory")
+        .takes_value(true);
+
     let base_url = Arg::with_name("base_url")
         .short("b")
         .long("base_url")
@@ -79,6 +87,7 @@ fn main() {
         .arg(log_dir)
         .arg(http_address)
         .arg(base_url)
+        .arg(static_dir)
         .get_matches();
 
     match (
@@ -87,8 +96,9 @@ fn main() {
         matches.value_of("password"),
         matches.value_of("http_address"),
         matches.value_of("base_url"),
+        matches.value_of("static_dir"),
     ) {
-        (Some(hs), Some(us), Some(pa), Some(ha), Some(bu)) => {
+        (Some(hs), Some(us), Some(pa), Some(ha), Some(bu), Some(sd)) => {
             run_bot(
                 hs,
                 us,
@@ -96,6 +106,7 @@ fn main() {
                 matches.value_of("log_dir").unwrap_or("."),
                 ha,
                 bu,
+                sd,
             );
         }
         _ => println!("Missing homeserver or username or password"),
