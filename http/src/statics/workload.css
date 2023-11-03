@@ -1,0 +1,75 @@
+
+/**
+ * PEARLS
+**/
+
+.month-load-wrapper {
+  margin-left: 1em;
+  /* border-bottom: 1px solid gray; */
+  padding-bottom: 1em;
+}
+
+.month-name {
+  margin-bottom: 0;
+  border-bottom: 1px solid gray;
+  padding-bottom: 0.5em;
+}
+
+.week-load {
+  margin-right: 1em;
+  width: 20%;
+}
+
+.dealines {
+  color: white;
+  background-color: black;
+  font-weight: bold;
+}
+
+/* .load-list {
+} */
+
+.load-value {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 5px;
+}
+
+.load-value > div {
+  flex-shrink: 0;
+}
+
+.load-hour {
+  width: 10px;
+  height: 10px;
+  background-color: black;
+  border-radius: 10px;
+}
+
+.load-hour:nth-child(6n) {
+  border-right: 2px solid white;
+}
+
+.month-load {
+  display: flex;
+}
+
+.load-list .project-name {
+    font-size: 0.8rem;
+}
+
+.user-list .user-1 {
+  color: green;
+}
+
+.load-list .user-1 .load-hour {
+  background-color: green;
+}    
+
+.user-list .user-2 {
+  color: red;
+}
+
+.load-list .user-2 .load-hour {
+  background-color: red;
+}    

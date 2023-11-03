@@ -7,9 +7,11 @@ use warp::Filter;
 mod calendar;
 mod common;
 mod context;
+mod helpers;
 mod landing;
 mod tabular;
 mod timeline;
+mod timeline2;
 mod workload;
 
 pub fn start_http(path: &Path, host: &str, static_dir: &str) {
@@ -24,6 +26,7 @@ pub fn start_http(path: &Path, host: &str, static_dir: &str) {
     std::thread::spawn(move || {
         let routes = calendar::calendar(arc_store.clone())
             .or(timeline::timeline(arc_store.clone()))
+            .or(timeline2::timeline(ctx.clone()))
             .or(tabular::tabular(arc_store.clone()))
             .or(landing::room_landing(arc_store.clone()))
             .or(workload::workload(arc_store.clone()))

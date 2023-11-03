@@ -1,0 +1,189 @@
+ body {
+    font-family: sans-serif;
+    padding: 0;
+    margin: 0;
+}
+
+a, a:hover, a:visited {
+    color: rgb(51, 51, 51);
+    text-decoration: none;
+}
+
+h1 {
+    margin-left: 2rem;
+}
+
+.projects {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.project-wrapper {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem 2rem;
+    width: 100%;
+    max-width: 32rem;
+    justify-content: flex-start;
+    position: relative;
+}
+
+.project-wrapper H2 {
+    margin-top: 0;
+    word-wrap: anywhere;
+}
+
+.project-gauge {
+    height: 11em;
+    width: 30px;
+    /* border: 2px solid #000; */
+    margin-right: 1em;
+    display: flex;
+    flex-direction: column;
+}
+.project-gauge > div {
+    width: 100%;
+}
+
+
+.meta-label {
+    position: absolute;
+    right: calc(50% + 1em);
+    top: 1rem;
+    padding: 0.5em;
+    background-color: lightgreen;
+    color: white;
+}
+
+.time-over {
+    background-color: red;
+}
+.completed .time-available {
+    background-color: rgb(27, 188, 252);
+}
+
+.time-available {
+    background-color: rgb(206, 244, 255);
+}
+.time-done {
+    background-color: #000;
+}
+
+.info-wrapper {
+    display: flex;
+    margin-bottom: 0.5em;
+}
+
+.info-wrapper .label {
+    margin-right: 1ch;
+}
+
+.month {
+    border: 1px solid grey;
+    border-top: none;
+}
+
+.week {
+    display: flex;
+
+    font-size: 8pt;
+    min-height: 64px;
+}
+.week.empty {
+    display: none;
+}
+.day {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    flex-basis: 0;
+}
+
+.in-month .weekday {
+    font-weight: bold;
+}
+
+.weekday {
+    border-bottom: 1px solid grey;
+    border-top: 1px solid grey;
+    text-align: center;
+}
+
+.task {
+    background-color: #eee;
+    padding: 3px;
+    margin: 3px;
+}
+
+.summary {
+    margin-bottom: 1em;
+}
+
+.completed {
+    background-color: rgb(233, 233, 233);
+}
+
+
+.project-info {
+    width: 50%;
+}
+
+
+.project-gauge.small {
+    width: 3%;
+}
+
+.project-gauge.medium {
+    width: 15%;
+}
+
+.project-gauge.large {
+    width: 32%;
+
+}
+
+.project-gauge.huge {
+    width: 50%;
+}
+
+
+.info-wrapper.not-in-time > .label {
+    color: red;
+}
+
+.info-wrapper.not-in-time > .value {
+    font-weight: bold;
+}
+.completed .info-wrapper.not-in-time > .label {
+    color: black;
+}
+
+.completed .info-wrapper.not-in-time > .value {
+    font-weight: normal;
+}
+
+
+/* Inline #1 | http://0.0.0.0:7777/!UGwqvmUMGyXJEIdkrn:matrix.org/timeline */
+
+.note {
+  font-size: 80%;
+}
+
+.note-content {
+  padding: 0;
+  margin-top: 0;
+}
+
+.note-date {
+  float: right;
+}
+
+summary {
+  font-style: italic;
+}
+
+.note-content {
+  /* margin-top: 0; */
+  margin: 2px 0 6px auto;
+}
+
