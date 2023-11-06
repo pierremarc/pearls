@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use shell::store::{AggregatedTaskRecord, ConnectedStore, NoteRecord, ProjectRecord};
-use std::{cmp::Ordering, convert::Infallible, time::Duration};
+use std::{cmp::Ordering, convert::Infallible, str::FromStr, time::Duration};
 use warp::Filter;
 
 use crate::context::{with_context, ArcContext};
@@ -17,25 +17,44 @@ fn round_div(a: u64, b: u64) -> u64 {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct RelAbs {
+    pub value: u64,
+    pub percent: u64,
+}
+
+fn rel_abs(value: u64, percent: u64) -> RelAbs {
+    RelAbs { value, percent }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Gauge {
-    pub overtime: u64,
-    pub available: u64,
-    pub done: u64,
+    pub overtime: RelAbs,
+    pub available: RelAbs,
+    pub done: RelAbs,
 }
 
 fn gauge(record: &ProjectRecord, done: &Duration) -> Gauge {
     let d = done.as_secs() + 1;
-    let p = record.provision.map_or(d, |d| d.as_secs()) + 1;
-    let (done_percent, avail_percent, over_percent) = if d > p {
-        (round_div(p * 100, d), 0, round_div((d - p) * 100, d))
+    let provision = record.provision.map_or(0, |p| p.as_secs());
+    let p = record.provision.map_or(d, |p| p.as_secs()) + 1;
+    let ((done, done_percent), (avail, avail_percent), (over, over_percent)) = if d > p {
+        (
+            (d, round_div(p * 100, d)),
+            (provision, 0),
+            (d - p, round_div((d - p) * 100, d)),
+        )
     } else {
-        (round_div(d * 100, p), round_div((p - d) * 100, p), 0)
+        (
+            (d, round_div(d * 100, p)),
+            (provision, round_div((p - d) * 100, p)),
+            (0, 0),
+        )
     };
 
     Gauge {
-        overtime: over_percent,
-        available: avail_percent,
-        done: done_percent,
+        overtime: rel_abs(over / 3600, over_percent),
+        available: rel_abs(avail / 3600, avail_percent),
+        done: rel_abs(done / 3600, done_percent),
     }
 }
 
@@ -45,16 +64,35 @@ pub struct TimelineProject {
     pub done: Duration,
     pub notes: Vec<NoteRecord>,
     pub gauge: Gauge,
+    pub size: String,
+}
+
+const LOW: u64 = 50;
+const MEDIUM: u64 = 250;
+const HIGH: u64 = 1000;
+
+fn get_size(n: u64) -> String {
+    if n < LOW {
+        String::from("small")
+    } else if n < MEDIUM {
+        String::from("medium")
+    } else if n < HIGH {
+        String::from("large")
+    } else {
+        String::from("huge")
+    }
 }
 
 impl TimelineProject {
     fn new(record: ProjectRecord, done: Duration, notes: Vec<NoteRecord>) -> TimelineProject {
         let gauge = gauge(&record, &done);
+        let size = get_size(record.provision.map(|d| d.as_secs() / 3600).unwrap_or(0));
         TimelineProject {
             record,
             done,
             notes,
             gauge,
+            size,
         }
     }
 }
@@ -139,7 +177,7 @@ async fn timeline_handler(
             let projects = get_projects(c);
             json!({
                 "projects": projects,
-                "base": base_path
+                "base": base_path,
             })
         }) {
             Ok(html) => Ok(warp::reply::html(html)),

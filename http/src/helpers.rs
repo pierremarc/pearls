@@ -5,9 +5,6 @@ use shell::{store::ProjectRecord, util::date_time_from_st};
 use std::time::{Duration, SystemTime};
 
 fn duration_to_hour(d: Duration) -> u64 {
-    // let m = d.as_secs() / 3600;
-    // let m2 = m + 500;
-    // m2
     (d.as_secs() + 1) / 3600
 }
 
@@ -17,6 +14,7 @@ fn format_date(t: &SystemTime) -> String {
 }
 
 handlebars_helper!(to_hour: |d: Duration|  duration_to_hour(d));
+handlebars_helper!(date: |s:SystemTime| format_date(&s));
 handlebars_helper!(some_date: |o: Option<SystemTime>|
     o.map(|d| format_date(&d)).unwrap_or(String::new())
 );
@@ -41,6 +39,7 @@ handlebars_helper!(child_projects: |id: i64, projects:Vec<TimelineProject>| {
 
 pub fn register_helpers(hs: &mut Handlebars) {
     hs.register_helper("to-hour", Box::new(to_hour));
+    hs.register_helper("date", Box::new(date));
     hs.register_helper("some-date", Box::new(some_date));
 
     hs.register_helper("child-projects", Box::new(child_projects));

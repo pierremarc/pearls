@@ -5,73 +5,78 @@
     <link rel="stylesheet" href="/static/timeline.css">
     <script>
         setTimeout(() => {
-            // document.location.reload()
-        }, 1000 * 60);
+            document.location.reload()
+        }, 1000 * 3600);
 
     </script>
 </head>
 
 <body>
     <div class="projects">
-        <!-- 
-            <div class="project-wrapper">
-            <div class="project-gauge small">
-                <div style="height:72%;" class="time-over"></div>
-                <div style="height:0%;" class="time-available"></div>
-                <div class="time-done" style="height:28%;"></div>
-            </div>
-            <div class="project-info">
-                <h2><a
-                        href="/!UGwqvmUMGyXJEIdkrn:matrix.org/calendar/innoviris/bpeds-dossier">innoviris/bpeds-dossier</a>
-                </h2>
-                <div class="info-wrapper not-in-time">
-                    <div class="label">Deadline:</div>
-                    <div class="value"> 1 February 2021</div>
-                </div>
-                <div class="info-wrapper overtime">
-                    <div class="label">Overtime: </div>
-                    <div class="value"><span>81h</span></div>
-                </div>
-                <div class="info-wrapper">
-                    <div class="label">Provisioned:</div>
-                    <div class="value">32h</div>
-                </div>
-                <div class="info-wrapper">
-                    <div class="label">Done:</div>
-                    <div class="value">113h</div>
-                </div>
-                <span style="display:none"></span>
-            </div>
-        </div>
-     -->
         {{#each projects}}
         {{#if record.is_meta}}
-        <div class="project-wrapper meta">
-            <h2>{{record.name}}</h2>
+        <div class="meta">
+            <h1>
+                <a href="{{base}}calendar/{{record.name}}">
+                    {{record.name}}
+                </a>
+            </h1>
             {{#with (child-projects record.id ../projects) as |childs|}}
             {{#each childs}}
-            <div class="child">
-                <details>
-                    <summary>
-                        <div>{{record.name}}</div>
-                    </summary>
-                    {{#if (gt gauge.overtime 0)}}
-                    <div class="info-wrapper overtime">
-                        <div class="label">Overtime: </div>
-                        <div class="value"><span>{{gauge.overtime}}%</span></div>
+            <div class="project-child">
+
+                <h2>
+                    <a href="{{base}}calendar/{{record.name}}">
+                        {{record.name}}
+                    </a>
+                </h2>
+
+                <div class="project-gauge {{size}}">
+
+                    <div style="width:{{gauge.done.percent}}%;" class="time-done"></div>
+                    <div style="width:{{gauge.available.percent}}%;" class="time-available"></div>
+                    <div style="width:{{gauge.overtime.percent}}%;" class="time-over"></div>
+                </div>
+
+                <div class="project-info">
+
+                    {{#if (has-endtime record)}}
+                    <div class="info-wrapper not-in-time">
+                        <div class="label">Deadline:</div>
+                        <div class="value"> {{some-date record.end_time}}</div>
                     </div>
                     {{/if}}
-                    {{#if (has-provision record)}}
+                    {{#if (gt gauge.overtime.value 0)}}
+                    <div class="info-wrapper overtime">
+                        <div class="label">Overtime: </div>
+                        <div class="value"><span>{{gauge.overtime.value}}h</span></div>
+                    </div>
+                    {{/if}}
+                    {{#if (gt gauge.available.value 0)}}
                     <div class="info-wrapper">
                         <div class="label">Provisioned:</div>
-                        <div class="value">{{get-provision record}}h</div>
+                        <div class="value">{{gauge.available.value}}h</div>
                     </div>
                     {{/if}}
                     <div class="info-wrapper">
                         <div class="label">Done:</div>
-                        <div class="value">{{to-hour done}}h</div>
+                        <div class="value">{{gauge.done.value}}h</div>
                     </div>
-                </details>
+
+                    {{#if (len notes)}}
+                    <details class="notes">
+                        <summary>notes</summary>
+                        {{#each notes}}
+                        <div class="note">
+                            <div class="note-date">{{date created_at}}</div>
+                            <div class="note-user">{{username}}</div>
+                            <p class="note-content">{{content}}</p>
+                        </div>
+                        {{/each}}
+                    </details>
+                    {{/if}}
+
+                </div>
 
             </div>
             {{/each}}
@@ -81,43 +86,65 @@
 
         {{/each}}
 
+
+    </div>
+
+    <div class="projects">
         {{#each projects}}
         {{#unless record.is_meta}}
         {{#unless (has-parent record)}}
         <!-- <pre>{{record.id}} || {{record.name}} || {{to-hour done}} || {{record.is_meta}}</pre> -->
 
         <div class="project-wrapper">
-            <div class="project-gauge small">
 
-                <div style="height:{{gauge.overtime}}%;" class="time-over"></div>
-                <div style="height:{{gauge.available}}%;" class="time-available"></div>
-                <div style="height:{{gauge.done}}%;" class="time-done"></div>
-            </div>
             <div class="project-info">
-                <h2><a href="/!UGwqvmUMGyXJEIdkrn:matrix.org/calendar/innoviris/bpeds-dossier">
+                <h2><a href="{{base}}calendar/{{record.name}}">
                         {{record.name}}
                     </a>
                 </h2>
+                <div class="project-gauge {{size}}">
+
+                    <div style="width:{{gauge.done.percent}}%;" class="time-done"></div>
+                    <div style="width:{{gauge.available.percent}}%;" class="time-available"></div>
+                    <div style="width:{{gauge.overtime.percent}}%;" class="time-over"></div>
+                </div>
                 {{#if (has-endtime record)}}
                 <div class="info-wrapper not-in-time">
                     <div class="label">Deadline:</div>
                     <div class="value"> {{some-date record.end_time}}</div>
                 </div>
                 {{/if}}
+                {{#if (gt gauge.overtime.value 0)}}
                 <div class="info-wrapper overtime">
                     <div class="label">Overtime: </div>
-                    <div class="value"><span>81h</span></div>
+                    <div class="value"><span>{{gauge.overtime.value}}h</span></div>
                 </div>
+                {{/if}}
+                {{#if (gt gauge.available.value 0)}}
                 <div class="info-wrapper">
                     <div class="label">Provisioned:</div>
-                    <div class="value">32h</div>
+                    <div class="value">{{gauge.available.value}}h</div>
                 </div>
+                {{/if}}
                 <div class="info-wrapper">
                     <div class="label">Done:</div>
-                    <div class="value">113h</div>
+                    <div class="value">{{gauge.done.value}}h</div>
                 </div>
                 <span style="display:none"></span>
             </div>
+
+            {{#if (len notes)}}
+            <details class="notes">
+                <summary>notes</summary>
+                {{#each notes}}
+                <div class="note">
+                    <div class="note-date">{{date created_at}}</div>
+                    <div class="note-user">{{username}}</div>
+                    <p class="note-content">{{content}}</p>
+                </div>
+                {{/each}}
+            </details>
+            {{/if}}
         </div>
 
         {{/unless}}
