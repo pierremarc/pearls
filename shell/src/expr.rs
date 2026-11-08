@@ -99,8 +99,10 @@ fn project_ident<'a>(ctx: SharedContext) -> Parser<'a, u8, String> {
     let sep = sym(b'/');
     let name = ident(ctx.clone());
     let all = client - sep + name;
-    with_error(all, move || err_project_ident(ctx.clone()))
-        .map(|(client, name)| format!("{}/{}", client, name))
+    with_error(all.name("Project identifier"), move || {
+        err_project_ident(ctx.clone())
+    })
+    .map(|(client, name)| format!("{}/{}", client, name))
 }
 
 // fn duration_() -> Parser<u8, time::Duration> {
