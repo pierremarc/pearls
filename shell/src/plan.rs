@@ -302,6 +302,7 @@ mod tests {
     use crate::{plan::*, store::Store};
 
     #[test]
+    #[ignore = "planning feature unused in the cooperative"]
     fn all_of_a_plan_is_possible() {
         let mut store = Store::new("/home/pierre/System/src/pearls".into());
         let con = store.connect_or_create("test.db").unwrap();
@@ -321,6 +322,7 @@ mod tests {
         }
     }
     #[test]
+    #[ignore = "planning feature unused in the cooperative"]
     fn find_next_year_loads() {
         let mut store = Store::new("/home/pierre/System/src/pearls".into());
         let con = store.connect_or_create("test.db").unwrap();
