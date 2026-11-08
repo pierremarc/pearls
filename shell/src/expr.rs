@@ -59,32 +59,18 @@ fn digit<'a>() -> Parser<'a, u8, u8> {
     one_of(b"0123456789")
 }
 
-// fn integer() -> Parser<u8, u32> {
-//     digit()
-//         .repeat(1..)
-//         .convert(|chars| String::from_utf8(chars.to_vec()))
-//         .map(|s| match s.parse::<u32>() {
-//             Ok(n) => n,
-//             Err(_) => 0,
-//         })
-// }
-
-// fn float<'a>() -> Parser<'a, u8, f64> {
-//     let integer = one_of(b"123456789") - one_of(b"0123456789").repeat(0..) | sym(b'0');
-//     let frac = sym(b'.') + one_of(b"0123456789").repeat(1..);
-//     let exp = one_of(b"eE") + one_of(b"+-").opt() + one_of(b"0123456789").repeat(1..);
-//     let number = sym(b'-').opt() + integer + frac.opt() + exp.opt();
-//     number
-//         .collect()
-//         .convert(std::str::from_utf8)
-//         .convert(|s| f64::from_str(&s))
-// }
-
 fn fixed_int<'a>(i: usize) -> Parser<'a, u8, u32> {
     digit()
         .repeat(i)
         .convert(|chars| String::from_utf8(chars.to_vec()))
         .map(|s| s.parse::<u32>().unwrap_or(0))
+}
+
+fn int<'a>() -> Parser<'a, u8, u64> {
+    digit()
+        .repeat(1..)
+        .convert(|chars| String::from_utf8(chars.to_vec()))
+        .convert(|s| s.parse::<u64>())
 }
 
 fn ident<'a>(ctx: SharedContext) -> Parser<'a, u8, String> {
@@ -99,18 +85,13 @@ fn project_ident<'a>(ctx: SharedContext) -> Parser<'a, u8, String> {
     let sep = sym(b'/');
     let name = ident(ctx.clone());
     let all = client - sep + name;
-    with_error(all, move || err_project_ident(ctx.clone()))
-        .map(|(client, name)| format!("{}/{}", client, name))
+    with_error(all.name("Project identifier"), move || {
+        err_project_ident(ctx.clone())
+    })
+    .map(|(client, name)| format!("{}/{}", client, name))
 }
 
-// fn duration_() -> Parser<u8, time::Duration> {
-//     string().map(|s| match humantime::parse_duration(&s) {
-//         Ok(d) => d,
-//         Err(err) => time::Duration::from_secs(0),
-//     })
-// }
-
-fn duration<'a>(ctx: SharedContext) -> Parser<'a, u8, time::Duration> {
+fn humantime_duration<'a>(ctx: SharedContext) -> Parser<'a, u8, time::Duration> {
     let string_parser = string();
     Parser::new(
         move |input: &[u8], start: usize| match string_parser.parse(&input[start..]) {
@@ -128,6 +109,25 @@ fn duration<'a>(ctx: SharedContext) -> Parser<'a, u8, time::Duration> {
             },
         },
     )
+    .name("humantime duration")
+}
+
+fn digit_duration<'a>() -> Parser<'a, u8, time::Duration> {
+    let hour = int().opt();
+    let min = int().opt();
+    let parser = hour - sym(b':') + min;
+    parser
+        .convert(|(h, m)| match (h, m) {
+            (None, None) => Err(String::from("Missing duration around colon")),
+            (Some(h), None) => Ok(time::Duration::from_mins(h * 60)),
+            (None, Some(m)) => Ok(time::Duration::from_mins(m)),
+            (Some(h), Some(m)) => Ok(time::Duration::from_mins(h * 60 + m)),
+        })
+        .name("digit duration")
+}
+
+fn duration<'a>(ctx: SharedContext) -> Parser<'a, u8, time::Duration> {
+    digit_duration() | humantime_duration(ctx)
 }
 
 fn st_from_ts(ts: i64) -> Result<time::SystemTime, impl std::error::Error> {
@@ -411,6 +411,43 @@ mod tests {
     use crate::expr::*;
 
     #[test]
+    fn parse_humantime_duration() {
+        assert_eq!(
+            duration(new_context()).parse("3h21min".as_bytes()),
+            Ok(time::Duration::from_mins(3 * 60 + 21))
+        );
+    }
+
+    #[test]
+    fn parse_digit_duration_hour_min() {
+        assert_eq!(
+            duration(new_context()).parse("3:21".as_bytes()),
+            Ok(time::Duration::from_mins(3 * 60 + 21))
+        );
+    }
+
+    #[test]
+    fn parse_digit_duration_hour() {
+        assert_eq!(
+            duration(new_context()).parse("3:".as_bytes()),
+            Ok(time::Duration::from_mins(3 * 60))
+        );
+    }
+
+    #[test]
+    fn parse_digit_duration_min() {
+        assert_eq!(
+            duration(new_context()).parse(":21".as_bytes()),
+            Ok(time::Duration::from_mins(21))
+        );
+    }
+
+    #[test]
+    fn parse_digit_duration_missing_inputs() {
+        assert!(duration(new_context()).parse(":".as_bytes()).is_err())
+    }
+
+    #[test]
     fn parse_error_is_nice() {
         let expected = String::from("Command does not exists");
         let result = match parse_command("!truc") {
@@ -426,7 +463,7 @@ mod tests {
         let expected: Result<Command, ParseCommandError> = Ok(Command::Do(
             "foo/0".into(),
             "dev".into(),
-            time::Duration::from_secs(3 * 60 * 60 + (30 * 60)),
+            time::Duration::from_mins(3 * 60 + (30)),
         ));
         assert_eq!(
             parse_command("!do foo/0 dev 3h 30m").is_ok(),
