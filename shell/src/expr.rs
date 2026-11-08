@@ -59,27 +59,6 @@ fn digit<'a>() -> Parser<'a, u8, u8> {
     one_of(b"0123456789")
 }
 
-// fn integer() -> Parser<u8, u32> {
-//     digit()
-//         .repeat(1..)
-//         .convert(|chars| String::from_utf8(chars.to_vec()))
-//         .map(|s| match s.parse::<u32>() {
-//             Ok(n) => n,
-//             Err(_) => 0,
-//         })
-// }
-
-// fn float<'a>() -> Parser<'a, u8, f64> {
-//     let integer = one_of(b"123456789") - one_of(b"0123456789").repeat(0..) | sym(b'0');
-//     let frac = sym(b'.') + one_of(b"0123456789").repeat(1..);
-//     let exp = one_of(b"eE") + one_of(b"+-").opt() + one_of(b"0123456789").repeat(1..);
-//     let number = sym(b'-').opt() + integer + frac.opt() + exp.opt();
-//     number
-//         .collect()
-//         .convert(std::str::from_utf8)
-//         .convert(|s| f64::from_str(&s))
-// }
-
 fn fixed_int<'a>(i: usize) -> Parser<'a, u8, u32> {
     digit()
         .repeat(i)
@@ -99,8 +78,10 @@ fn project_ident<'a>(ctx: SharedContext) -> Parser<'a, u8, String> {
     let sep = sym(b'/');
     let name = ident(ctx.clone());
     let all = client - sep + name;
-    with_error(all, move || err_project_ident(ctx.clone()))
-        .map(|(client, name)| format!("{}/{}", client, name))
+    with_error(all.name("Project identifier"), move || {
+        err_project_ident(ctx.clone())
+    })
+    .map(|(client, name)| format!("{}/{}", client, name))
 }
 
 // fn duration_() -> Parser<u8, time::Duration> {
